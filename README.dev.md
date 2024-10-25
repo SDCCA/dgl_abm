@@ -60,7 +60,9 @@ To see the results on the command line, run
 coverage report
 ```
 
-`coverage` can also generate output in HTML and other formats; see `coverage help` for more information.## Running linters locally
+`coverage` can also generate output in HTML and other formats; see `coverage help` for more information.
+
+## Running linters locally
 
 For linting and sorting imports we will use [ruff](https://beta.ruff.rs/docs/). Running the linters requires an
 activated virtual environment with the development tools installed.
@@ -71,9 +73,14 @@ ruff check .
 
 # linter with automatic fixing
 ruff check . --fix
+
+# linter with reformatting enabled
+ruff format .
 ```
 
-To fix readability of your code style you can use [yapf](https://github.com/google/yapf).## Generating the API docs
+To fix readability of your code style you can use [yapf](https://github.com/google/yapf).
+
+## Generating the API docs
 
 ```shell
 cd docs
@@ -111,6 +118,15 @@ Bumping the version across all files is done with [bump-my-version](https://gith
 bump-my-version bump major  # bumps from e.g. 0.3.2 to 1.0.0
 bump-my-version bump minor  # bumps from e.g. 0.3.2 to 0.4.0
 bump-my-version bump patch  # bumps from e.g. 0.3.2 to 0.3.3
+```
+
+The code also compares stored model versions to the current code version when loading existing models.
+
+Updating the current code version, stored in `src/version.md` is done with a script:
+
+```shell
+cd src
+regen_version.sh
 ```
 
 ## Making a release
