@@ -6,6 +6,9 @@ os.environ["DGLBACKEND"] = "pytorch"
 import torch
 import argparse
 
+if not torch.cuda.is_available():
+    raise SystemError('GPU access not available to PyTorch; try cpu_default.py for machines without GPU.') 
+
 def main(args):
 
     model = dgl_ptm.PovertyTrapModel(model_identifier=f'no_social_{args.seed}', root_path=args.root_path)
