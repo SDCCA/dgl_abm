@@ -3,6 +3,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize_scalar
 from ..util.utils import load_consumption_model
+from ..util.utils import scale_input
 #from dgl_ptm.util.nn_arch import parse_config
 
 
@@ -303,23 +304,31 @@ def  _nn_bellman_past_shock_consumption(model_graph,model_params, timestep, devi
     
     # Load model  
     
-    estimator,cons_scale, i_a_scale = load_consumption_model(model_params['nn_path'],device)  
+    estimator,cons_scale, i_a_scale,input_scale = load_consumption_model(model_params['nn_path'],device)  
 
     estimator.to(device)
     estimator.eval()
-
-    input = torch.cat((model_graph.ndata['alpha'].unsqueeze(1), model_graph.ndata['wealth'].unsqueeze(1), model_graph.ndata['sigma'].unsqueeze(1), model_graph.ndata['theta'].unsqueeze(1)), dim=1) 
-    
+    input = torch.cat((model_graph.ndata['alpha'].unsqueeze(1), model_graph.ndata['wealth'].unsqueeze(1), model_graph.ndata['sigma'].unsqueeze(1), model_graph.ndata['theta'].unsqueeze(1)), dim=1)
+    # Scale inputs as specified in nn config
+    if {"alpha","Alpha"} & input_scale.keys():
+        input[:,0]=scale_input(input[:,0], input_scale.get(list({"alpha","Alpha"} & input_scale.keys())[0]),"alpha",False)
+    if {"k","K"} & input_scale.keys():
+        input[:,1]=scale_input(input[:,1], input_scale.get(list({"k","K"} & input_scale.keys())[0]),"k",False)
+    if {"sigma","Sigma"} & input_scale.keys():
+        input[:,2]=scale_input(input[:,2], input_scale.get(list({"sigma","Sigma"} & input_scale.keys())[0]),"sigma",False)
+    if {"theta","Theta"} & input_scale.keys():
+        input[:,3]=scale_input(input[:,3], input_scale.get(list({"theta","Theta"} & input_scale.keys())[0]),"theta",False)
     # Forward pass to get predictions
     with torch.no_grad():
 
         pred=estimator(input)
     
     model_graph.ndata['m'],model_graph.ndata['i_a']=model_graph.ndata['a_table'][torch.arange(model_graph.ndata['a_table'].size(0)),:,torch.argmin(torch.abs(pred[:, 0].unsqueeze(1)*i_a_scale - model_graph.ndata['a_table'][:,1,:]), dim=1)].unbind(dim=1)
-    
+    print(f"scaled i_a: {model_graph.ndata['i_a'][0:5]}")
     #print("Cleaning output and checking for violations")
 
     # Clean Consumption
+    print(f"Setting {torch.sum(model_graph.ndata['wealth_consumption']<0)} negative consumption predictions to zero,{torch.sum(model_graph.ndata['wealth_consumption']<-0.1)} were less than -0.1 .")
     model_graph.ndata['wealth_consumption']=(pred[:,1]*cons_scale).clamp_(min=0)
     print( f"Based on alpha: {model_graph.ndata['alpha'][0:5]}")
     print(f'Based on k: {model_graph.ndata["wealth"][0:5]}')
@@ -378,12 +387,21 @@ def  _nn_bellman_past_shock_consumption_no_adapt(model_graph,model_params, times
     
     # Load model  
     
-    estimator,cons_scale,i_a_scale = load_consumption_model(model_params['nn_path'],device)  
+    estimator,cons_scale, i_a_scale,input_scale = load_consumption_model(model_params['nn_path'],device)  
 
     estimator.to(device)
     estimator.eval()
-
-    input = torch.cat((model_graph.ndata['alpha'].unsqueeze(1), model_graph.ndata['wealth'].unsqueeze(1), model_graph.ndata['sigma'].unsqueeze(1), model_graph.ndata['theta'].unsqueeze(1)), dim=1) 
+    
+    input = torch.cat((model_graph.ndata['alpha'].unsqueeze(1), model_graph.ndata['wealth'].unsqueeze(1), model_graph.ndata['sigma'].unsqueeze(1), model_graph.ndata['theta'].unsqueeze(1)), dim=1)
+    # Scale inputs as specified in nn config
+    if {"alpha","Alpha"} & input_scale.keys():
+        input[:,0]=scale_input(input[:,0], input_scale.get(list({"alpha","Alpha"} & input_scale.keys())[0]),"alpha",False)
+    if {"k","K"} & input_scale.keys():
+        input[:,1]=scale_input(input[:,1], input_scale.get(list({"k","K"} & input_scale.keys())[0]),"k",False)
+    if {"sigma","Sigma"} & input_scale.keys():
+        input[:,2]=scale_input(input[:,2], input_scale.get(list({"sigma","Sigma"} & input_scale.keys())[0]),"sigma",False)
+    if {"theta","Theta"} & input_scale.keys():
+        input[:,3]=scale_input(input[:,3], input_scale.get(list({"theta","Theta"} & input_scale.keys())[0]), "theta",False)
     
     # Forward pass to get predictions
     with torch.no_grad():
@@ -394,6 +412,7 @@ def  _nn_bellman_past_shock_consumption_no_adapt(model_graph,model_params, times
     # print("Cleaning output and checking for violations")
 
     # Clean Consumption
+    print(f"Setting {torch.sum(model_graph.ndata['wealth_consumption']<0)} negative consumption predictions to zero,{torch.sum(model_graph.ndata['wealth_consumption']<-0.1)} were less than -0.1 .")
     model_graph.ndata['wealth_consumption']=(pred[:,0]*cons_scale).clamp_(min=0)
 
     # Check for violations
@@ -407,7 +426,8 @@ def  _nn_bellman_past_shock_consumption_no_adapt(model_graph,model_params, times
 
     if torch.sum(violation)!=0:
         # Violation type 1: i_a exceeds depreciated k + income
-        violation_i_a = (global_θ)*(1-model_params['depreciation']) * model_graph.ndata['wealth'] + model_graph.ndata['income'] <=0
+        
+        # (Not possible for i_a = 0)
 
         # Violation type 2: consumption exceeds k
         #violation_consumption = model_graph.ndata['wealth']-model_graph.ndata['wealth_consumption']<=0

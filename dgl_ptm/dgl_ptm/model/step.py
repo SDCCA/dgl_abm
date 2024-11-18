@@ -58,14 +58,7 @@ def ptm_step(agent_graph, device, timestep, params):
                 print(f"Agent graph storage type: {agent_graph.idtype}")
 
 
-            #Update agent theta
-            agent_update(
-                agent_graph,
-                params,
-                device=device,
-                timestep=timestep,
-                method ='theta'
-                )
+
             #Update agent income
             agent_update(agent_graph,
                          params,
@@ -92,13 +85,18 @@ def ptm_step(agent_graph, device, timestep, params):
                 )
             return
         #For timestep 1 and beyond:
-        #Update agent capital
+
+        #Update agent capital, k_t+1 for the previous step becomes k_t
         agent_update(
             agent_graph, 
             params, 
             device=device, 
             timestep=timestep, 
             method = 'capital'
+            )
+        #Update agent theta with the information from the previous step
+        agent_update(
+            agent_graph, params, device=device, timestep=timestep-1, method ='theta'
             )
 
         #Update edge weights
@@ -139,13 +137,10 @@ def ptm_step(agent_graph, device, timestep, params):
         #Wealth transfer
         trade_money(agent_graph, device, method = params['trade_method'])
 
-        #Update agent theta
-        agent_update(
-            agent_graph, params, device=device, timestep=timestep, method ='theta'
-            )
-        #Update agent income
+
+        # Update agent income
         agent_update(agent_graph, params, device=device, method ='income')
-        #Predict agent consumption
+        # Predict agent consumption (and investment if applicable)
         agent_update(
             agent_graph, params, device=device, timestep=timestep, method ='consumption'
             )
