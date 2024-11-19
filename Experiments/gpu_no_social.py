@@ -5,11 +5,21 @@ import os
 os.environ["DGLBACKEND"] = "pytorch"
 import torch
 import argparse
+import ast
 
 if not torch.cuda.is_available():
     raise SystemError('GPU access not available to PyTorch; try cpu_default.py for machines without GPU.') 
 
 def main(args):
+
+    if args.shocks is not None:
+        shock_info = ast.literal_eval(args.shocks)
+        shock_info = [float(shock_info[0]),int(shock_info[1])]
+        global_theta_dist = None
+        global_theta = [shock_info[0] if (i + 1) % shock_info[1] == 0 else 1 for i in range(args.steps)]
+    else:
+        global_theta_dist = {'type':'beta','parameters':[4.13,0.07],'round':False,'decimals':None}
+        global_theta = None
 
     model = dgl_ptm.PovertyTrapModel(model_identifier=f'no_social_{args.seed}', root_path=args.root_path)
 
@@ -42,7 +52,8 @@ def main(args):
                             'adapt_cost':torch.tensor([0,0.2,0.5]),
                             'depreciation': 0.08,
                             'discount': 0.95,
-                            'global_theta_dist': {'type':'beta','parameters':[4.13,0.07],'round':False,'decimals':None},
+                            'global_theta_dist': global_theta_dist,
+                            'global_theta': global_theta,
                             'del_method':'size',
                             'del_threshold':'balance',
                             'noise_ratio': 0.05,
@@ -62,6 +73,7 @@ if __name__ == "__main__":
     parser.add_argument('--root_path', default=os.getcwd(),type=str, required=False, help='Root path for output data')
     parser.add_argument('--agents', type=int, default=1000000, help='Number of agents')
     parser.add_argument('--steps', type=int, default=50, help='Number of timesteps')
+    parser.add_argument('--shocks', type=str, default=None, help='Magnitude and 1/frequency of shocks "[magnitude,period]"')
 
     args = parser.parse_args()
     main(args)

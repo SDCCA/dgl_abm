@@ -221,6 +221,7 @@ class PovertyTrapModel(Model):
 
         # see config.py for why cfg.model_identifier
         cfg.model_identifier = self._model_identifier
+        self.config.model_identifier = self._model_identifier
 
         # update model parameters/ attributes
         cfg_dict = cfg.model_dump(by_alias=True, warnings=False)
@@ -244,7 +245,7 @@ class PovertyTrapModel(Model):
         self.steering_parameters['epath'] = str(self.model_dir / epath)
 
         # Save updated config to yaml file.
-        self.save_model_parameters(overwrite)
+        self.save_model_parameters(overwrite=True)
 
     def _set_global_theta(self):
         assert not(self.steering_parameters['global_theta'] is not None and self.steering_parameters['global_theta_dist'] is not None), 'Conflict: global_theta and global_theta_dist are both specified. Please specify only one.'             
