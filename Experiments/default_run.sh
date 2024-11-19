@@ -10,8 +10,8 @@ module load CUDA/12.1.1
 module load cuDNN/8.9.2.26-CUDA-12.1.1 
 
 
-conda env create -f environment.yml --name dgl_ptm
-conda activate dgl_ptm
+#conda env create -f ../environment.yml --name dgl_ptm_gpu
+conda activate dgl_ptm_gpu
 
 # Experimental setup
 
