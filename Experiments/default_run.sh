@@ -3,8 +3,8 @@
 #SBATCH -p gpu
 #SBATCH --gpus=1
 
-#              d-hh:mm:ss
-#SBATCH --time=  00:30:00
+#            d-hh:mm:ss
+#SBATCH --time=00:30:00
 module load 2023 
 module load CUDA/12.1.1 
 module load cuDNN/8.9.2.26-CUDA-12.1.1 
