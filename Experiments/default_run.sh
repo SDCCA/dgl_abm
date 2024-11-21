@@ -37,7 +37,7 @@ for seed in "${seeds[@]}"
             date=$(date)
             start=$(date +%s)
             echo "$date Started run $counter/$total_runs with seed: $seed" | tee -a "$log_file"
-            variation="--seed $seed --steps 75"
+            variation="--seed $seed --steps 75 --root_path output/default"
             python -m cProfile -o "profile_run_$counter.prof" gpu_default.py $variation 
             finish=$(date +%s)
             date=$(date)
