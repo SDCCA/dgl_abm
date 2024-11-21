@@ -35,7 +35,7 @@ for seed in "${seeds[@]}"
             date=$(date)
             echo "$date Started run $counter/$total_runs with seed: $seed"
             variation="--seed $seed --steps 75"
-            python train.py $variation 
+            python gpu_default.py $variation 
             date=$(date)
             echo "$date Finished run $counter/$total_runs with seed: $seed"
         fi
