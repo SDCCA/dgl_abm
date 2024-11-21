@@ -4,11 +4,13 @@
 #SBATCH --gpus=1
 
 #            d-hh:mm:ss
-#SBATCH --time=00:30:00
+#SBATCH --time=05:00:00
 module load 2023 
 module load CUDA/12.1.1 
 module load cuDNN/8.9.2.26-CUDA-12.1.1 
 
+log_file="default_run_times.log"
+> "$log_file" 
 
 # Environment (Snellius specific)
 source /sw/arch/Centos8/EB_production/2021/software/Anaconda3/2021.05/etc/profile.d/conda.sh
@@ -33,11 +35,15 @@ for seed in "${seeds[@]}"
         ((counter++))
         if [ "$counter" -ge "$restart" ] && [ "$counter" -le "$earlystop" ]; then
             date=$(date)
-            echo "$date Started run $counter/$total_runs with seed: $seed"
+            start=$(date +%s)
+            echo "$date Started run $counter/$total_runs with seed: $seed" | tee -a "$log_file"
             variation="--seed $seed --steps 75"
-            python gpu_default.py $variation 
+            python -m cProfile -o "profile_run_$counter.prof" gpu_default.py $variation 
+            finish=$(date +%s)
             date=$(date)
-            echo "$date Finished run $counter/$total_runs with seed: $seed"
+            echo "$date Finished run $counter/$total_runs with seed: $seed" | tee -a "$log_file"
+            elapsed=$(($finish-$start))
+            echo "Elapsed time: $elapsed" | tee -a "$log_file"
         fi
     done
 
