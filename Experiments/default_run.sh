@@ -10,6 +10,8 @@ module load CUDA/12.1.1
 module load cuDNN/8.9.2.26-CUDA-12.1.1 
 
 
+# Environment (Snellius specific)
+source /sw/arch/Centos8/EB_production/2021/software/Anaconda3/2021.05/etc/profile.d/conda.sh
 #conda env create -f ../environment.yml --name dgl_ptm_gpu
 conda activate dgl_ptm_gpu
 
