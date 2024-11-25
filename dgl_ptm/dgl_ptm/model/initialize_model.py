@@ -360,7 +360,6 @@ class PovertyTrapModel(Model):
         agents_theta = self._initialize_agents_theta()
         agents_sensitivity = self._initialize_agents_sensitivity()
         agents_adapt_table = self._initialize_agents_adapttable()
-        agents_tec_level, agents_gamma, agents_cost = self._initialize_agents_tec()
 
         # TODO: add comment explaining what each variable is (here? where?).
         if isinstance(self.graph,dgl.DGLGraph):
@@ -371,9 +370,8 @@ class PovertyTrapModel(Model):
             self.graph.ndata['sensitivity'] = agents_sensitivity
             self.graph.ndata['lambda'] = agents_lam
             self.graph.ndata['sigma'] = agents_sigma
-            self.graph.ndata['tec'] = agents_tec_level
-            self.graph.ndata['gamma'] = agents_gamma
-            self.graph.ndata['cost'] = agents_cost
+            self.graph.ndata['tech_index'] = torch.zeros(self.graph.num_nodes())
+            self.graph.ndata['income'] = torch.zeros(self.graph.num_nodes())
             self.graph.ndata['a_table'] = agents_adapt_table
             self.graph.ndata['wealth_consumption'] = torch.zeros(self.graph.num_nodes())
             self.graph.ndata['i_a'] = torch.zeros(self.graph.num_nodes())
@@ -460,26 +458,7 @@ class PovertyTrapModel(Model):
             self.config.number_agents
             )
 
-    def _initialize_agents_tec(self):
-        """Initialize the agents technology level distribution.
 
-        The  agents technology level distribution will be 1d tensor
-        sampled from the specified intial technology level distribution.
-        Initialize agents gamma and cost distributions according to their
-        technology level and the speci fied initial gamma and cost values
-        associated with that tech level.
-        """
-        agents_tec_level = sample_distribution(
-            self.config.technology_dist.__dict__,
-            self.config.number_agents
-            )
-        agents_gamma = torch.zeros(self.config.number_agents)
-        agents_cost = torch.zeros(self.config.number_agents)
-        for i in range(len(self.config.technology_levels)):
-            technology_mask = agents_tec_level == i
-            agents_gamma[technology_mask] = self.config.gamma_vals[i]
-            agents_cost[technology_mask] = self.config.cost_vals[i]
-        return agents_tec_level, agents_gamma, agents_cost
 
     def step(self):
         """Perform a single step of the model.
