@@ -11,7 +11,7 @@ from pathlib import Path
 
 import torch
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, field_validator, typing
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, field_validator, typing, RootModel,validator
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,18 @@ class MThetaDist(BaseModel):
     # Make sure pydantic validates the default values
     model_config = ConfigDict(validate_default = True)
 
+class HomophilyDictEntry(BaseModel):
+    """Base class for homophily dictionary entry."""
+    keys: list[str] = ["wealth"]
+    homophily_parameter: int | float = 1.0
+    characteristic_distance: int | float = 3.33
+
+class HomophilyDict(RootModel[dict[str, HomophilyDictEntry]]):
+    """Base class for homophily dictionary."""
+    root:dict[str, HomophilyDictEntry]={"wealth": {"keys": ["wealth"], "homophily_parameter": 1.0, "characteristic_distance": 3.33}}
+    # Ensure default values are validated
+    model_config = ConfigDict(validate_default=True)
+
 
 class SteeringParams(BaseModel):
     """Base class for steering parameters.
@@ -52,8 +64,9 @@ class SteeringParams(BaseModel):
     consume_method: str = "fitted_consumption"
     nn_path: str | None = "default"
     capital_update_method: str = "default"
-    characteristic_distance: int | float = 35
-    homophily_parameter: int | float = 0.69
+    characteristic_distance: int | float | None = 35
+    homophily_parameter: int | float |None = 0.69
+    homophily_basis: dict | None = None
     adapt_m: list[float] = [0.0, 0.5, 0.9]
     adapt_cost: list[float] = [0.0, 0.25, 0.45]
     depreciation: float = 0.6
@@ -92,9 +105,45 @@ class SteeringParams(BaseModel):
 
 class InitialGraphArgs(BaseModel):
     """Base class for initial graph arguments."""
-    seed: int = 100
+    seed: int = 1
     new_node_edges: int = 1
 
+    # Make sure pydantic validates the default values
+    model_config = ConfigDict(validate_default = True)
+
+class GridCreationParams(BaseModel):
+    """Base class for grid creation arguments"""
+    method: str = "basic"
+    x: int | None = 10
+    y: int | None = 10
+    properties: dict | None = None
+    path: str | None = None  
+    def __post_init__(self):
+        if self.method in ["basic", "distribution"]:
+            if self.x is None or self.y is None:
+                raise ValueError("x and y must be integers for basic and distribution methods.")
+        if self.method == "distribution":
+            if self.properties is None:
+                raise ValueError("Define property(ies) for distribution method.")
+        if self.method == "custom_import":
+            if self.path is None:
+                raise ValueError("Define path to .pt or .np file for custom_import method.")
+    # Make sure pydantic validates the default values
+    model_config = ConfigDict(validate_default = True)
+
+class GridAssignmentParams(BaseModel):
+    """Base class for agent to grid assignment arguments"""
+    method: str = "random"
+    property: str | None = None
+    path: str |None = None
+    def __post_init__(self):
+        if self.method == "property":
+            if self.property is None or self.property == "":
+                raise ValueError("Define path to .pt or .np file for custom_import method.")
+    def __post_init__(self):
+        if self.method == "custom_import":
+            if self.path is None or self.path == "":
+                raise ValueError("Define grid property name for property method.")
     # Make sure pydantic validates the default values
     model_config = ConfigDict(validate_default = True)
 
@@ -212,6 +261,9 @@ class Config(BaseModel):
     device: str = "cpu"
     seed: int = 42
     number_agents: PositiveInt = 100
+    spatial: bool = False
+    spatial_creation_args: GridCreationParams = GridCreationParams()
+    spatial_assignment_args: GridAssignmentParams = GridAssignmentParams()
     initial_graph_type: str = "barabasi-albert"
     initial_graph_args: InitialGraphArgs = InitialGraphArgs()
     step_target: PositiveInt = 5

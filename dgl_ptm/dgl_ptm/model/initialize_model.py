@@ -14,83 +14,15 @@ from dgl_ptm.config import CONFIG, Config
 from dgl_ptm.model.step import ptm_step
 from dgl_ptm.network.network_creation import network_creation
 from dgl_ptm.util.network_metrics import average_degree, average_weighted_degree, node_degree, node_weighted_degree
+from dgl_ptm.environment.grid_creation import grid_creation
+from dgl_ptm.environment.grid_assignment import grid_assignment
+from dgl_ptm.util.utils import sample_distribution_tensor
 
 # Set the seed of the random number generator
 # this is global and will affect all random number generators
 generator = torch.manual_seed(0)
 
 logger = logging.getLogger(__name__)
-
-def sample_distribution_tensor(type, dist_parameters, n_samples, round=False, decimals=None): # noqa: PLR0912, E501
-    """Create and return samples from different distributions.
-
-    :param type: Type of distribution to sample
-    :param dist_parameters: array of parameters as required/supported by
-        requested distribution type
-    :param n_samples: number of samples to return (as 1d tensor)
-    :param round: optional, whether the samples are to be rounded
-    :param decimals: optional, required if round is specified. decimal places to
-        round to
-    """
-    # check if each item in dist_parameters are torch tensors, if not convert them
-    for i, item in enumerate(dist_parameters):
-        # if item has dtype NoneType, raise error
-        if item is not None and not isinstance(item, torch.Tensor):
-                dist_parameters[i] = torch.tensor(item)
-
-    if not isinstance(n_samples, torch.Tensor):
-        n_samples = torch.tensor(n_samples)
-
-    if type == 'uniform':
-        dist = torch.distributions.uniform.Uniform(
-            dist_parameters[0], dist_parameters[1]
-            ).sample([n_samples])
-    elif type == 'normal':
-        dist = torch.distributions.normal.Normal(
-            dist_parameters[0], dist_parameters[1]
-            ).sample([n_samples])
-    elif type == 'bernoulli':
-        dist = torch.distributions.bernoulli.Bernoulli(
-            probs=dist_parameters[0], logits=dist_parameters[1], validate_args=None
-            ).sample([n_samples])
-    elif type == 'multinomial':
-        multinomial_samples = torch.multinomial(
-            torch.tensor(dist_parameters[0]), n_samples, replacement=True
-            )
-        dist = torch.gather(torch.Tensor(dist_parameters[1]), 0, multinomial_samples)
-    elif type == 'truncnorm':
-        # dist_parameters are mean, standard deviation, min, and max.
-        # cdf(x)=(1+erf(x/2^0.5))/2. cdf^-1(x)=2^0.5*erfinv(2*x-1).
-        trunc_val_min = (dist_parameters[2]-dist_parameters[0])/dist_parameters[1]
-        trunc_val_max = (dist_parameters-dist_parameters[0])/dist_parameters[1]
-        cdf_min = (1 + torch.erf(trunc_val_min / torch.sqrt(torch.tensor(2.0))))/2
-        cdf_max = (1 + torch.erf(trunc_val_max / torch.sqrt(torch.tensor(2.0))))/2
-
-        uniform_samples = torch.rand(n_samples)
-        inverse_transform = torch.erfinv(
-            2 *(cdf_min + (cdf_max - cdf_min) * uniform_samples) - 1
-            )
-        sample_ppf = torch.sqrt(torch.tensor(2.0)) * inverse_transform
-
-        dist = dist_parameters[0] + dist_parameters[1] * sample_ppf
-    elif type == 'beta':
-        dist = torch.distributions.beta.Beta(dist_parameters[0], dist_parameters[1]
-            ).sample([n_samples])
-    else:
-        raise NotImplementedError(
-            'Currently only uniform, normal, multinomial, and '
-            'bernoulli distributions are supported'
-            )
-
-    if round:
-        if decimals is None:
-            raise ValueError(
-                'rounding requires decimals of rounding accuracy to be specified'
-                )
-        else:
-            return torch.round(dist,decimals=decimals)
-    else:
-        return dist
 
 def sample_distribution(distribution, n_samples):
     """Sample from a distribution."""
@@ -281,10 +213,19 @@ class PovertyTrapModel(Model):
             torch.manual_seed(self.config.seed)
             print (f"Model torch seed set to {self.config.seed}")
         
+
         self.create_network()
+        if self.config.spatial:
+            self.create_grid()
+            self.place_agents()
+        print(self.grid_environment["rand_value"])
+        print(self.graph.ndata['x'])
+        print(self.graph.ndata['y'])
+
         self.initialize_global_properties()
         self.initialize_agent_properties()
         self.graph = self.graph.to(self.config.device)
+
         print(f'{self.graph.number_of_nodes()} agents initialized on {self.graph.device} device')
 
         weight_update(
@@ -317,6 +258,23 @@ class PovertyTrapModel(Model):
             **self.config.initial_graph_args.__dict__
             )
         self.graph = agent_graph
+
+    def create_grid(self):
+        """
+        Create an initial grid environment for agents.
+        (Optional)
+        """
+        grid_environment = grid_creation(
+            **self.config.spatial_creation_args.__dict__
+            )
+        self.grid_environment = grid_environment
+
+    def place_agents(self):
+        """Place agents on the grid environment."""
+
+        self.graph.ndata['x'] = torch.zeros(self.graph.num_nodes()).float()
+        self.graph.ndata['y'] = torch.zeros(self.graph.num_nodes()).float()
+        grid_assignment(self.graph, self.grid_environment, **self.config.spatial_assignment_args.__dict__)
 
     def initialize_global_properties(self):
         """Initialize global properties/values of the model.

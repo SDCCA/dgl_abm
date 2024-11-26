@@ -2,6 +2,7 @@ from dgl_ptm.agent.income_generation import income_generation
 from dgl_ptm.agent.wealth_consumption import wealth_consumption
 from dgl_ptm.agent.capital_update import capital_update
 from dgl_ptm.util.network_metrics import node_degree, node_weighted_degree
+from dgl_ptm.agent.movement import move_agents
 
 
 def agent_update(model_graph, model_params=None, device=None, timestep=None, method='pseudo'):
@@ -20,6 +21,8 @@ def agent_update(model_graph, model_params=None, device=None, timestep=None, met
         _agent_degree_update(model_graph)
     elif method == 'weighted_degree':
         _agent_weighted_degree_update(model_graph)
+    elif method == 'position':
+        _agent_position_update(model_graph)
     elif method == 'pseudo':
         _pseudo_agent_update(model_graph,model_params,device)
     else:
@@ -60,12 +63,16 @@ def _agent_income_update(model_graph, model_params, device):
     income_generation(model_graph,device,model_params,method=model_params['income_method'])
 
 def _agent_degree_update(model_graph):
-    '''Updates agent degree. Note both directions are considered.'''
+    '''Updates agent degree. Note both edge directions are considered.'''
     model_graph.ndata['degree'] = node_degree(model_graph)
 
 def _agent_weighted_degree_update(model_graph):
-    '''Updates agent weighted degree. Note both directions are considered.'''
+    '''Updates agent weighted degree. Note both edge directions are considered.'''
     model_graph.ndata['weighted_degree'] = node_weighted_degree(model_graph)
+
+def _agent_position_update(model_graph,model_params,moving_agents):
+    '''Updates agent position.'''
+    move_agents(model_graph,model_params,moving_agents)
 
 
 

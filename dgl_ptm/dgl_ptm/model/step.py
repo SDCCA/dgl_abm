@@ -5,6 +5,7 @@
 from dgl_ptm.agent.agent_update import agent_update
 from dgl_ptm.agentInteraction.trade_money import trade_money
 from dgl_ptm.agentInteraction.weight_update import weight_update
+from dgl_ptm.agentInteraction.weight_update import multi_property_weight_update
 from dgl_ptm.model.data_collection import data_collection
 from dgl_ptm.network.global_attachment import global_attachment
 from dgl_ptm.network.link_deletion import link_deletion
@@ -43,14 +44,12 @@ def ptm_step(agent_graph, device, timestep, params):
         agent_update(agent_graph, params, device=device)
 
         #Weight update
-        weight_update(
+        multi_property_weight_update(
             agent_graph,
             device,
-            homophily_parameter = params['homophily_parameter'],
-            characteristic_distance = params['characteristic_distance'],
-            truncation_weight = params['truncation_weight']
-            )
-
+            truncation_weight = params['truncation_weight'],
+            properties = {'wealth':{'keys':["wealth"],'homophily_parameter':params['homophily_parameter'],'characteristic_distance':params['characteristic_distance']}})
+        
     elif params['step_type']=='ptm':
         if timestep==0:
             if agent_graph.number_of_edges()+params['noise_ratio']*agent_graph.number_of_nodes()+params['local_ratio']*agent_graph.number_of_nodes()<2**32:
@@ -100,13 +99,13 @@ def ptm_step(agent_graph, device, timestep, params):
             )
 
         #Update edge weights
-        weight_update(
+
+        multi_property_weight_update(
             agent_graph,
             device,
-            homophily_parameter = params['homophily_parameter'],
-            characteristic_distance = params['characteristic_distance'],
-            truncation_weight = params['truncation_weight']
-            )
+            truncation_weight = params['truncation_weight'],
+            properties = params['homophily_basis'])
+
 
         #Edge manipulation
         start_edges = agent_graph.number_of_edges()
