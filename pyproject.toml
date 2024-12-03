@@ -13,7 +13,6 @@ authors = [
     {name = "Debraj Roy"},
     {name = "Fakhereh Sarah Alidoost"},
     {name = "Pranav Chandramouli"},
-    {name = "Sonja Georgievska"},
     {name = "Thijs van Lankveld"},
 ]
 classifiers = [
