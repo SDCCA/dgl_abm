@@ -16,6 +16,12 @@ log_file="no_adapt_run_times.log"
 source /home/vgaribay/anaconda3/etc/profile.d/conda.sh
 #conda env create -f ../environment.yml --name dgl_ptm_gpu
 conda activate dgl_ptm_gpu
+printenv > batch_env.txt
+
+nvidia-smi
+nvcc --version
+
+python -c "import torch; print(torch.cuda.is_available())"
 
 # Experimental setup
 
