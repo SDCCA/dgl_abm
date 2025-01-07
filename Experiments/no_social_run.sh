@@ -13,7 +13,7 @@ log_file="no_social_run_times.log"
 > "$log_file" 
 
 # Environment (Snellius specific)
-source /home/user/anaconda3/etc/profile.d/conda.sh
+source /sw/arch/Centos8/EB_production/2021/software/Anaconda3/2021.05/etc/profile.d/conda.sh
 #conda env create -f ../environment.yml --name dgl_ptm_gpu
 conda activate dgl_ptm_gpu
 
