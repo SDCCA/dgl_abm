@@ -434,11 +434,9 @@ def  _nn_bellman_past_shock_consumption_no_adapt(model_graph,model_params, times
 
         print(f"Agents in equation violation: {torch.sum(equation_violation)}")
         print(f"Agents in personal/actual violation: {torch.sum(violation)}")
-        print(f"...because of i_a: {torch.sum(violation_i_a)}")
 
         # redetermine violations with updated i_a
         violation = (global_θ )*(1-model_params['depreciation'])*model_graph.ndata['wealth']  + model_graph.ndata['income'] - model_graph.ndata['wealth_consumption'] <=0
-        violation_i_a = (global_θ )*(1-model_params['depreciation']) * model_graph.ndata['wealth'] + model_graph.ndata['income'] <=0
 
         model_graph.ndata['wealth_consumption'][torch.nonzero(violation, as_tuple=False)]=(global_θ *(1-model_params['depreciation']) * model_graph.ndata['wealth'][torch.nonzero(violation, as_tuple=False)] + model_graph.ndata['income'][torch.nonzero(violation, as_tuple=False)])*0.99
 
