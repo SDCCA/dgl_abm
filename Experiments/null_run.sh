@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=defPTM
+#SBATCH --job-name=nullPTM
 #SBATCH -p gpu
 #SBATCH --gpus=1
 
@@ -9,7 +9,7 @@ module load 2023
 module load CUDA/12.1.1 
 module load cuDNN/8.9.2.26-CUDA-12.1.1 
 
-log_file="default_run_times.log"
+log_file="null_run_times.log"
 > "$log_file" 
 
 # Environment (Snellius specific)
@@ -28,7 +28,7 @@ counter=0
 restart=0
 earlystop=50
 
-echo "Script: default_run.sh"
+echo "Script: null_run.sh"
 
 for seed in "${seeds[@]}"
     do
@@ -37,8 +37,8 @@ for seed in "${seeds[@]}"
             date=$(date)
             start=$(date +%s)
             echo "$date Started run $counter/$total_runs with seed: $seed" | tee -a "$log_file"
-            variation="--seed $seed --steps 75 --root_path output/default"
-            python -m cProfile -o "profile_run_$counter.prof" gpu_default.py $variation 
+            variation="--seed $seed --steps 75 --root_path output/null"
+            python -m cProfile -o "profile_data/null/profile_run_$counter.prof" gpu_null.py $variation 
             finish=$(date +%s)
             date=$(date)
             echo "$date Finished run $counter/$total_runs with seed: $seed" | tee -a "$log_file"
