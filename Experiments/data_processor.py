@@ -183,7 +183,7 @@ mutual_info.to_csv("mutual_info.csv")
 
 #Warning: the following section overwrites source dataframes with aggregated statistics
 
-def percentile_aggregate(df, seed_col='seed', wealth_col='wealth', consumption_col='consumption'):
+def percentile_aggregate(df, seed_col='seed', wealth_col='wealth', consumption_col='wealth_consumption'):
     # Calculate wealth percentiles
     df['wealth_percentile'] = df.groupby(seed_col)[wealth_col].transform(lambda x: pd.qcut(x, 10, labels=False))
     
