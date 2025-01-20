@@ -126,7 +126,7 @@ for _,dirnames,_ in os.walk(os.path.join(output_path,no_adaptation_path)):
                 agent_df = zarr_group_to_df(zarr_array,time_step=0)
                 working_df=pd.merge(working_df, agent_df, on="AgentID")
                 no_adapt_df = pd.concat([no_adapt_df, working_df], ignore_index=True)
-
+'''
 def calculate_histogram_data(df, column, bins):
     counts, bin_edges = np.histogram(df[column], bins=bins, density=True)
     percent_counts = counts * 100 
@@ -146,8 +146,9 @@ def save_histogram_data(dfs, labels, filename, column="wealth"):
 dfs = [default_df, no_social_df, no_adapt_df, null_df]
 labels = ["default_arrangement", "no_social_arrangement", "no_adapt_arrangement", "null_arrangement"]
 save_histogram_data(dfs, labels, "wealth_histogram_data.csv")
+'''
 
-
+'''
 def calculate_mutual_info(df, target_col, feature_cols):
     X = df[feature_cols]
     y = df[target_col]
@@ -176,3 +177,39 @@ mutual_info = pd.DataFrame({label: mi for label, mi in results}, index=feature_c
 
 # Save to CSV
 mutual_info.to_csv("mutual_info.csv")
+
+'''
+
+
+#Warning: the following section overwrites source dataframes with aggregated statistics
+
+def percentile_aggregate(df, seed_col='seed', wealth_col='wealth', consumption_col='consumption'):
+    # Calculate wealth percentiles
+    df['wealth_percentile'] = df.groupby(seed_col)[wealth_col].transform(lambda x: pd.qcut(x, 10, labels=False))
+    
+    # Group by seed and wealth percentile, then calculate statistics
+    grouped = df.groupby([seed_col, 'wealth_percentile']).agg(
+        mean_wealth=(wealth_col, 'mean'),
+        mean_consumption=(consumption_col, 'mean'),
+        sd_wealth=(wealth_col, 'std'),
+        sd_consumption=(consumption_col, 'std')
+    ).reset_index()
+    
+    return grouped
+
+default_df = percentile_aggregate(default_df)
+no_social_df = percentile_aggregate(no_social_df)
+no_adapt_df = percentile_aggregate(no_adapt_df)
+null_df = percentile_aggregate(null_df)
+
+# Add a column to identify the model arrangement
+default_df['model'] = 'default_arrangement'
+no_social_df['model'] = 'no_social_arrangement'
+no_adapt_df['model'] = 'no_adapt_arrangement'
+null_df['model'] = 'null_arrangement'
+
+# Combine all results into a single DataFrame
+combined_results = pd.concat([default_df, no_social_df, no_adapt_df, null_df], ignore_index=True)
+
+# Save to CSV
+combined_results.to_csv("percentile_wealth_consumption.csv", index=False)
