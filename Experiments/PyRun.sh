@@ -1,7 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=nsocPTM
+#SBATCH --job-name=PyBatch
 #SBATCH -p gpu
 #SBATCH --gpus=1
+#SBATCH --output=python_current.out
 
 #            d-hh:mm:ss
 #SBATCH --time=10:00:00
@@ -14,9 +15,9 @@ module load cuDNN/8.9.2.26-CUDA-12.1.1
 source /home/vgaribay/anaconda3/etc/profile.d/conda.sh
 conda activate dgl_ptm_gpu
 echo "Script: PyRun.sh File: $1"
+date=$(date)
 echo "$date Started run"
-
-python $1
+python -u $1
 echo "$date Finished run"
 
 
