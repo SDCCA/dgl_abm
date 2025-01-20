@@ -43,7 +43,9 @@ def zarr_group_to_df(zarr_group, time_step=":", target_columns=False):
             df[array_name] = zarr_array.flatten()
             if array_name == "i_a":
                 zarr_array = zarr_group[array_name][:,0:time_step]
+                print(zarr_array)
                 df[f"{array_name}_accumulated"] = np.sum(zarr_array, axis=1)
+                print(df[f"{array_name}_accumulated"])
             if array_name in ["theta","degree","wealth"]:
                 zarr_array = zarr_group[array_name][:,0]
                 df[f"{array_name}_initial"] = zarr_array.flatten()
@@ -56,7 +58,7 @@ def calculate_mutual_info(df, target_col, feature_cols):
     mi = mutual_info_regression(X, y)
     return mi
 
-
+'''
 # Create a dataframe from all available seeds for a model arrangement
 # a target timestep specified above is used as a filter.
 default_df=pd.DataFrame()
@@ -75,7 +77,7 @@ for _,dirnames,_ in os.walk(os.path.join(output_path,default_path)):
                 agent_df = zarr_group_to_df(zarr_array,time_step=0)
                 working_df=pd.merge(working_df, agent_df, on="AgentID")
                 default_df = pd.concat([default_df, working_df], ignore_index=True)
-
+'''
 null_df=pd.DataFrame()
 for _,dirnames,_ in os.walk(os.path.join(output_path,null_path)):
     for folder_name in dirnames:
@@ -92,7 +94,7 @@ for _,dirnames,_ in os.walk(os.path.join(output_path,null_path)):
                 agent_df = zarr_group_to_df(zarr_array,time_step=0)
                 working_df=pd.merge(working_df, agent_df, on="AgentID")
                 null_df = pd.concat([null_df, working_df], ignore_index=True)
-
+'''
 no_social_df=pd.DataFrame()
 for _,dirnames,_ in os.walk(os.path.join(output_path,no_social_path)):
     for folder_name in dirnames:
@@ -109,7 +111,7 @@ for _,dirnames,_ in os.walk(os.path.join(output_path,no_social_path)):
                 agent_df = zarr_group_to_df(zarr_array,time_step=0)
                 working_df=pd.merge(working_df, agent_df, on="AgentID")
                 no_social_df = pd.concat([no_social_df, working_df], ignore_index=True)
-
+'''
 no_adapt_df=pd.DataFrame()
 for _,dirnames,_ in os.walk(os.path.join(output_path,no_adaptation_path)):
     for folder_name in dirnames:
@@ -146,9 +148,9 @@ def save_histogram_data(dfs, labels, filename, column="wealth"):
 dfs = [default_df, no_social_df, no_adapt_df, null_df]
 labels = ["default_arrangement", "no_social_arrangement", "no_adapt_arrangement", "null_arrangement"]
 save_histogram_data(dfs, labels, "wealth_histogram_data.csv")
-'''
 
-'''
+
+
 def calculate_mutual_info(df, target_col, feature_cols):
     X = df[feature_cols]
     y = df[target_col]
@@ -178,7 +180,7 @@ mutual_info = pd.DataFrame({label: mi for label, mi in results}, index=feature_c
 # Save to CSV
 mutual_info.to_csv("mutual_info.csv")
 
-'''
+
 
 
 #Warning: the following section overwrites source dataframes with aggregated statistics
@@ -213,3 +215,4 @@ combined_results = pd.concat([default_df, no_social_df, no_adapt_df, null_df], i
 
 # Save to CSV
 combined_results.to_csv("percentile_wealth_consumption.csv", index=False)
+'''
