@@ -5,19 +5,16 @@ import zarr
 import numpy as np
 import pandas as pd
 import os
-from sklearn.feature_selection import mutual_info_regression
+from sklearn.feature_selection import mutual_info_regression,VarianceThreshold
 from joblib import Parallel, delayed
-
-
 
 #The root path:
 #output_path= "/Volumes/PTM_data/PTMOutput"
 output_path= "output"
 #The data folder paths:
-default_path= "default"
-no_social_path= "no_social"
-no_adaptation_path= "no_adapt"
-null_path= "null"
+arrangement_paths = ["default", "no_social", "no_adapt", "null"]
+arrangement_labels = ["default_", "no_social_", "no_adapt_", "null_"]
+
 completed_seeds=[15796,861,76821,54887,6266,
                 82387,37195,87499,44132,60264,
                 16024,41091,67222,64821,770,
@@ -43,91 +40,44 @@ def zarr_group_to_df(zarr_group, time_step=":", target_columns=False):
             df[array_name] = zarr_array.flatten()
             if array_name == "i_a":
                 zarr_array = zarr_group[array_name][:,0:time_step]
-                print(zarr_array)
                 df[f"{array_name}_accumulated"] = np.sum(zarr_array, axis=1)
-                print(df[f"{array_name}_accumulated"])
+                print(f'sum:{np.sum(np.sum(zarr_array, axis=1))}')
             if array_name in ["theta","degree","wealth"]:
                 zarr_array = zarr_group[array_name][:,0]
                 df[f"{array_name}_initial"] = zarr_array.flatten()
     df.index.name = "AgentID"
     return df
 
-def calculate_mutual_info(df, target_col, feature_cols):
-    X = df[feature_cols]
-    y = df[target_col]
-    mi = mutual_info_regression(X, y)
-    return mi
-
-'''
 # Create a dataframe from all available seeds for a model arrangement
 # a target timestep specified above is used as a filter.
-default_df=pd.DataFrame()
-for _,dirnames,_ in os.walk(os.path.join(output_path,default_path)):
-    for folder_name in dirnames:
-        if folder_name.startswith("default_"):
-            print(f"Processing{os.path.join(output_path,default_path,folder_name,'agent_data.zarr')}")
-            seed=int(folder_name.split('_')[-1])
-            if seed in completed_seeds:
-                zarr_path = os.path.join(output_path,default_path,folder_name,'agent_data.zarr')
-                zarr_array = zarr.open(zarr_path, mode='r')
-                working_df = zarr_group_to_df(zarr_array, time_step=ts_target)
-                working_df['seed']=seed
-                zarr_path = os.path.join(output_path,default_path,folder_name, 'agent_data_initial.zarr')
-                zarr_array = zarr.open(zarr_path, mode='r')
-                agent_df = zarr_group_to_df(zarr_array,time_step=0)
-                working_df=pd.merge(working_df, agent_df, on="AgentID")
-                default_df = pd.concat([default_df, working_df], ignore_index=True)
-'''
-null_df=pd.DataFrame()
-for _,dirnames,_ in os.walk(os.path.join(output_path,null_path)):
-    for folder_name in dirnames:
-        if folder_name.startswith("null_"):
-            print(f"Processing{os.path.join(output_path,null_path,folder_name,'agent_data.zarr')}")
-            seed=int(folder_name.split('_')[-1])
-            if seed in completed_seeds:
-                zarr_path = os.path.join(output_path,null_path,folder_name,'agent_data.zarr')
-                zarr_array = zarr.open(zarr_path, mode='r')
-                working_df = zarr_group_to_df(zarr_array, time_step=ts_target)
-                working_df['seed']=seed
-                zarr_path = os.path.join(output_path,null_path,folder_name, 'agent_data_initial.zarr')
-                zarr_array = zarr.open(zarr_path, mode='r')
-                agent_df = zarr_group_to_df(zarr_array,time_step=0)
-                working_df=pd.merge(working_df, agent_df, on="AgentID")
-                null_df = pd.concat([null_df, working_df], ignore_index=True)
-'''
-no_social_df=pd.DataFrame()
-for _,dirnames,_ in os.walk(os.path.join(output_path,no_social_path)):
-    for folder_name in dirnames:
-        if folder_name.startswith("no_social_"):
-            print(f"Processing{os.path.join(output_path,no_social_path,folder_name,'agent_data.zarr')}")
-            seed=int(folder_name.split('_')[-1])
-            if seed in completed_seeds:
-                zarr_path = os.path.join(output_path,no_social_path,folder_name,'agent_data.zarr')
-                zarr_array = zarr.open(zarr_path, mode='r')
-                working_df = zarr_group_to_df(zarr_array, time_step=ts_target)
-                working_df['seed']=seed
-                zarr_path = os.path.join(output_path,no_social_path,folder_name, 'agent_data_initial.zarr')
-                zarr_array = zarr.open(zarr_path, mode='r')
-                agent_df = zarr_group_to_df(zarr_array,time_step=0)
-                working_df=pd.merge(working_df, agent_df, on="AgentID")
-                no_social_df = pd.concat([no_social_df, working_df], ignore_index=True)
-'''
-no_adapt_df=pd.DataFrame()
-for _,dirnames,_ in os.walk(os.path.join(output_path,no_adaptation_path)):
-    for folder_name in dirnames:
-        if folder_name.startswith("no_adapt_"):
-            print(f"Processing{os.path.join(output_path,no_adaptation_path,folder_name,'agent_data.zarr')}")
-            seed=int(folder_name.split('_')[-1])
-            if seed in completed_seeds:
-                zarr_path = os.path.join(output_path,no_adaptation_path,folder_name,'agent_data.zarr')
-                zarr_array = zarr.open(zarr_path, mode='r')
-                working_df = zarr_group_to_df(zarr_array, time_step=ts_target)
-                working_df['seed']=seed
-                zarr_path = os.path.join(output_path,no_adaptation_path,folder_name, 'agent_data_initial.zarr')
-                zarr_array = zarr.open(zarr_path, mode='r')
-                agent_df = zarr_group_to_df(zarr_array,time_step=0)
-                working_df=pd.merge(working_df, agent_df, on="AgentID")
-                no_adapt_df = pd.concat([no_adapt_df, working_df], ignore_index=True)
+
+data_frames = {
+    'default': pd.DataFrame(),
+    'no_social': pd.DataFrame(),
+    'no_adapt': pd.DataFrame(),
+    'null': pd.DataFrame()
+}
+for arrangement_path in arrangement_paths:
+    for _,dirnames,_ in os.walk(os.path.join(output_path,arrangement_path)):
+        for folder_name in dirnames:
+            if folder_name.startswith(f"{arrangement_path}_"):
+                print(f"Processing{os.path.join(output_path,arrangement_path,folder_name,'agent_data.zarr')}")
+                seed=int(folder_name.split('_')[-1])
+                if seed in completed_seeds:
+                    zarr_path = os.path.join(output_path,arrangement_path,folder_name,'agent_data.zarr')
+                    zarr_array = zarr.open(zarr_path, mode='r')
+                    working_df = zarr_group_to_df(zarr_array, time_step=ts_target)
+                    working_df['seed']=seed
+                    zarr_path = os.path.join(output_path,arrangement_path,folder_name, 'agent_data_initial.zarr')
+                    zarr_array = zarr.open(zarr_path, mode='r')
+                    agent_df = zarr_group_to_df(zarr_array,time_step=0)
+                    working_df=pd.merge(working_df, agent_df, on="AgentID")
+                    data_frames[arrangement_path] = pd.concat([data_frames[arrangement_path], working_df], ignore_index=True)
+default_df = data_frames['default']
+no_social_df = data_frames['no_social']
+no_adapt_df = data_frames['no_adapt']
+null_df = data_frames['null']
+
 '''
 def calculate_histogram_data(df, column, bins):
     counts, bin_edges = np.histogram(df[column], bins=bins, density=True)
@@ -149,17 +99,26 @@ dfs = [default_df, no_social_df, no_adapt_df, null_df]
 labels = ["default_arrangement", "no_social_arrangement", "no_adapt_arrangement", "null_arrangement"]
 save_histogram_data(dfs, labels, "wealth_histogram_data.csv")
 
-
+'''
 
 def calculate_mutual_info(df, target_col, feature_cols):
     X = df[feature_cols]
     y = df[target_col]
-    mi = mutual_info_regression(X, y)
+    #k-NN was problematic for zero variance features
+    mi = np.zeros(len(feature_cols))
+    filter = VarianceThreshold(threshold=0.0)
+    X = filter.fit_transform(X)
+    retained_indices = filter.get_support(indices=True)
+    estimated_mi = mutual_info_regression(X, y)
+    for i, index in enumerate(retained_indices):
+        mi[index] = estimated_mi[i]
     return mi
 
-def process_mutual_info(df, label, target_col, feature_cols):
+def process_mutual_info(df, label, target_col, feature_cols, seed='All'):
+    if seed != 'All':
+        df = df[df['seed'] == seed]
     mi = calculate_mutual_info(df, target_col, feature_cols)
-    return label, mi
+    return label, seed, mi
 
 # Define the data and parameters
 data_frames = {
@@ -168,21 +127,27 @@ data_frames = {
     'No Adaptation': no_adapt_df,
     'Null': null_df
 }
+
 target_col = 'wealth'
 feature_cols = ['weighted_degree', 'i_a_accumulated', 'alpha', 'sigma', 'lambda', 'sensitivity', 'degree_initial', 'theta_initial', 'wealth_initial']
 
 # Use parallel processing to calculate mutual information
-results = Parallel(n_jobs=-1)(delayed(process_mutual_info)(df, label, target_col, feature_cols) for label, df in data_frames.items())
+results = Parallel(n_jobs=-1)(delayed(process_mutual_info)(df, label, target_col, feature_cols, seed) for label, df in data_frames.items()
+    for seed in completed_seeds + ['All'])
 
-# Combine results into a DataFrame
-mutual_info = pd.DataFrame({label: mi for label, mi in results}, index=feature_cols)
+# Organize in df
+mutual_info=[]
+for label, seed, mi in results:
+    for feature, value in zip(feature_cols, mi):
+        mutual_info.append({'Label': label, 'Seed': seed, 'Feature': feature, 'MI': value})
+mutual_info = pd.DataFrame(mutual_info)
 
 # Save to CSV
 mutual_info.to_csv("mutual_info.csv")
 
 
 
-
+'''
 #Warning: the following section overwrites source dataframes with aggregated statistics
 
 def percentile_aggregate(df, seed_col='seed', wealth_col='wealth', consumption_col='wealth_consumption'):
