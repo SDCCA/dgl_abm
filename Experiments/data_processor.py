@@ -22,7 +22,7 @@ completed_seeds=[15796,861,76821,54887,6266,
                 83105,53708,85306,28694,71933]           
 
 #The target timestep:
-ts_target=25
+ts_target=74
 
 graph_test_data=False
 
