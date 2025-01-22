@@ -22,7 +22,7 @@ completed_seeds=[15796,861,76821,54887,6266,
                 83105,53708,85306,28694,71933]           
 
 #The target timestep:
-ts_target=50
+ts_target=25
 
 graph_test_data=False
 
@@ -78,7 +78,7 @@ no_social_df = data_frames['no_social']
 no_adapt_df = data_frames['no_adapt']
 null_df = data_frames['null']
 
-'''
+
 def calculate_histogram_data(df, column, bins):
     counts, bin_edges = np.histogram(df[column], bins=bins, density=True)
     percent_counts = counts * 100 
@@ -97,7 +97,7 @@ def save_histogram_data(dfs, labels, filename, column="wealth"):
 # Save histogram data for all scenarios in a single CSV file
 dfs = [default_df, no_social_df, no_adapt_df, null_df]
 labels = ["default_arrangement", "no_social_arrangement", "no_adapt_arrangement", "null_arrangement"]
-save_histogram_data(dfs, labels, "wealth_histogram_data.csv")
+save_histogram_data(dfs, labels, f"wealth_histogram_data_t{ts_target}.csv")
 
 '''
 
@@ -139,13 +139,15 @@ results = Parallel(n_jobs=-1)(delayed(process_mutual_info)(df, label, target_col
 mutual_info=[]
 for label, seed, mi in results:
     for feature, value in zip(feature_cols, mi):
-        mutual_info.append({'Label': label, 'Seed': seed, 'Feature': feature, 'MI': value})
+        mutual_info.append({'Arrangement': label, 'Seed': seed, 'Feature': feature, 'MI': value})
 mutual_info = pd.DataFrame(mutual_info)
 
 # Save to CSV
 mutual_info.to_csv("mutual_info.csv")
 
 
+
+'''
 
 '''
 #Warning: the following section overwrites source dataframes with aggregated statistics
