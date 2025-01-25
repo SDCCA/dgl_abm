@@ -11,6 +11,7 @@ module load cuDNN/8.9.2.26-CUDA-12.1.1
 
 if ! mount | grep -q "/tmp/UvA-RD"; then
     echo "Mounting UvA-RD..."
+    mkdir -p /tmp/UvA-RD
     rclone -vv mount --use-cookies --timeout 24h UvA-RD:IVI-FNWI-328-DGL-PTM\ \(Projectfolder\) /tmp/UvA-RD --vfs-cache-mode full --daemon
 else
     echo "/tmp/UvA-RD is already mounted."
