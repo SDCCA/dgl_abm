@@ -37,7 +37,7 @@ for seed in "${seeds[@]}"
             date=$(date)
             start=$(date +%s)
             echo "$date Started run $counter/$total_runs with seed: $seed" | tee -a "$log_file"
-            variation="--seed $seed --steps 50 --agents 10000 --root_path output/SchemeSQ/default"
+            variation="--seed $seed --steps 51 --agents 10000 --root_path output/SchemeSQ/default"
             python gpu_default_schemeSQ.py $variation 
             finish=$(date +%s)
             date=$(date)
