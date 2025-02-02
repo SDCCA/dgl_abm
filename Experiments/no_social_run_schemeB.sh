@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=nsocPTM
+#SBATCH --job-name=nsocB
 #SBATCH -p gpu
 #SBATCH --gpus=1
 
@@ -37,7 +37,7 @@ for seed in "${seeds[@]}"
             date=$(date)
             start=$(date +%s)
             echo "$date Started run $counter/$total_runs with seed: $seed" | tee -a "$log_file"
-            variation="--seed $seed --steps 50 --agents 10000 --root_path /output/SchemeB/no_social"
+            variation="--seed $seed --steps 50 --agents 10000 --root_path output/SchemeB/no_social"
             python gpu_no_social_schemeB.py $variation 
             finish=$(date +%s)
             date=$(date)
