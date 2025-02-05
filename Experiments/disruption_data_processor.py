@@ -5,25 +5,21 @@ import zarr
 import numpy as np
 import pandas as pd
 import os
-from sklearn.feature_selection import mutual_info_regression,VarianceThreshold
-from joblib import Parallel, delayed
-from scipy.stats import wasserstein_distance
-import matplotlib.pyplot as plt
 
 
 #The root path:
-output_path= "/Volumes/PTM_data/PTMOutput/Disruption"
-#output_path= "output/Disruption"
+#output_path= "/Volumes/PTM_data/PTMOutput/Disruption"
+output_path= "output/Disruption"
 #The data folder paths:
 arrangement_paths = ["disrupt_6", "disrupt_7", "disrupt_8"]
 arrangement_labels = ["default_"]
 
 
-completed_seeds=[15796]#,861,76821,54887,6266,
-                #82387,37195,87499,44132,60264,
-                #16024,41091,67222,64821,770,
-                #59736,62956,64926,67970,5312,
-                #83105,53708,85306,28694,71933]           
+completed_seeds=[15796,861,76821,54887,6266,
+                82387,37195,87499,44132,60264,
+                16024,41091,67222,64821,770,
+                59736,62956,64926,67970,5312,
+                83105,53708,85306,28694,71933]           
 
 #The target data:
 graph_test_data=False
