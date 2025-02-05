@@ -156,7 +156,7 @@ save_boxplot_data(total_investment, delta_k, 'boxplot_bin_size_5.csv')
 
 
 
-def save_boxplot_comparison(dfs, labels, filename, bin_size=2):
+def save_boxplot_comparison(dfs, labels, filename, bin_size=4):
     all_data = []
     for df, label in zip(dfs, labels):
         df["delta_k"] = df["wealth"] - df["wealth_initial"]
@@ -188,4 +188,4 @@ def save_boxplot_comparison(dfs, labels, filename, bin_size=2):
     comparison_data.to_csv(filename, index=False)
 
 # Example usage
-save_boxplot_comparison(dfs,['Disruption 0.6', 'Disruption 0.7', 'Disruption 0.8'], 'disruption_comparison_boxplot.csv')
+save_boxplot_comparison(dfs,['Disruption 0.6', 'Disruption 0.7', 'Disruption 0.8'], 'disruption_comparison_boxplot_bin_size_4.csv')
