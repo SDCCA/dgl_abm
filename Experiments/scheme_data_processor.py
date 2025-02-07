@@ -112,8 +112,19 @@ def save_histogram_data(dfs, labels, filename, column="wealth"):
     hist_data.to_csv(filename, index=False)
 
 #Save histogram data for all scenarios in a single CSV file
-save_histogram_data(dfs, labels, f"scheme_wealth_histogram_data_t{ts_target}.csv")
+save_histogram_data(dfs, labels, f"scheme_wealth_histogram_data_t{str(ts_target)}.csv")
 
+summarydf = pd.DataFrame()
+for df, label in zip(dfs, labels):
+    summary=pd.DataFrame()
+    summary["Scheme"] = label.split("_")[0]
+    summary["Arrangement"] = "_".join(label.split("_")[1:])
+    summary["Mean"] = df["wealth"].mean()
+    summary["Median"] = df["wealth"].median()
+    summarydf=pd.concat([summarydf,summary], ignore_index=True)
+
+
+summarydf.to_csv(f"scheme_wealth_histogram_data_t{str(ts_target)}_summary.csv")
 
 
 '''
