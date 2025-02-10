@@ -115,16 +115,26 @@ def save_histogram_data(dfs, labels, filename, column="wealth"):
 save_histogram_data(dfs, labels, f"scheme_wealth_histogram_data_t{str(ts_target)}.csv")
 
 summarydf = pd.DataFrame()
+quantiledf = pd.DataFrame()
+centiles = list(range(101))
 for df, label in zip(dfs, labels):
-    summary=pd.DataFrame()
-    summary["Scheme"] = label.split("_")[0]
-    summary["Arrangement"] = "_".join(label.split("_")[1:])
-    summary["Mean"] = df["wealth"].mean()
-    summary["Median"] = df["wealth"].median()
-    summarydf=pd.concat([summarydf,summary], ignore_index=True)
+    summary = pd.DataFrame({
+        "Scheme": [label.split("_")[0]], 
+        "Arrangement": ["_".join(label.split("_")[1:])],
+        "Mean": [df["wealth"].mean()], 
+        "Median": [df["wealth"].median()]
+    })
+    quantiles = pd.DataFrame({'Percentile':centiles,
+                              "Value":[df["wealth"].quantile(c / 100.0) for c in centiles],
+                              "Scheme":[label.split("_")[0]],
+                              "Arrangement":["_".join(label.split("_")[1:])]})
+    
+    
+    summarydf = pd.concat([summarydf, summary], ignore_index=True)
+    quantiledf = pd.concat([quantiledf, quantiles], ignore_index=True)
 
-
-summarydf.to_csv(f"scheme_wealth_histogram_data_t{str(ts_target)}_summary.csv")
+summarydf.to_csv(f"scheme_wealth_histogram_data_t50_summary.csv")
+quantiledf.to_csv(f"scheme_wealth_quantile_data_t50.csv")
 
 
 '''
