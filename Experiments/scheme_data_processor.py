@@ -126,8 +126,9 @@ for df, label in zip(dfs, labels):
     })
     quantiles = pd.DataFrame({'Percentile':centiles,
                               "Value":[df["wealth"].quantile(c / 100.0) for c in centiles],
-                              "Scheme":[label.split("_")[0]],
-                              "Arrangement":["_".join(label.split("_")[1:])]})
+                              "Cumulative Wealth": [df[df["wealth"] <= df["wealth"].quantile(c / 100.0)]["wealth"].sum() for c in centiles],
+                              "Scheme":[label.split("_")[0]]*101,
+                              "Arrangement":["_".join(label.split("_")[1:])]*101})
     
     
     summarydf = pd.concat([summarydf, summary], ignore_index=True)
