@@ -139,8 +139,8 @@ for df, label in zip(dfs, labels):
         "Arrangement": ["_".join(label.split("_")[1:])],
         "Mean": [df["wealth"].mean()], 
         "Median": [df["wealth"].median()],
-        "Gini Mean": gini_by_seed.mean(),
-        "Gini_SD": gini_by_seed.std()})
+        "Gini Mean": np.mean(gini_by_seed),
+        "Gini_SD": np.std(gini_by_seed)})
     
     summarydf = pd.concat([summarydf, summary], ignore_index=True)
     quantiledf = pd.concat([quantiledf, quantiles], ignore_index=True)
