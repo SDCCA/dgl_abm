@@ -118,18 +118,29 @@ summarydf = pd.DataFrame()
 quantiledf = pd.DataFrame()
 centiles = list(range(101))
 for df, label in zip(dfs, labels):
-    summary = pd.DataFrame({
-        "Scheme": [label.split("_")[0]], 
-        "Arrangement": ["_".join(label.split("_")[1:])],
-        "Mean": [df["wealth"].mean()], 
-        "Median": [df["wealth"].median()]
-    })
+
     quantiles = pd.DataFrame({'Percentile':centiles,
                               "Value":[df["wealth"].quantile(c / 100.0) for c in centiles],
                               "Cumulative Wealth": [df[df["wealth"] <= df["wealth"].quantile(c / 100.0)]["wealth"].sum() for c in centiles],
                               "Scheme":[label.split("_")[0]]*101,
                               "Arrangement":["_".join(label.split("_")[1:])]*101})
-    
+    gini_by_seed=[]
+    for seed in df["seed"].unique():
+        seed_df=df[df["seed"]==seed]
+        sorted_k=seed_df["wealth"].sort_values()
+        n = len(sorted_k)
+        cumulative_population = np.arange(1, n + 1) / n
+        cumulative_wealth = np.cumsum(sorted_k) / np.sum(sorted_k)
+        area_under = np.trapz(cumulative_wealth, cumulative_population)
+        # gini = area under equality - area under Lorenz curve
+        gini_by_seed.append(1/2 - area_under)
+
+    summary = pd.DataFrame({"Scheme": [label.split("_")[0]], 
+        "Arrangement": ["_".join(label.split("_")[1:])],
+        "Mean": [df["wealth"].mean()], 
+        "Median": [df["wealth"].median()],
+        "Gini Mean": gini_by_seed.mean(),
+        "Gini_SD": gini_by_seed.std()})
     
     summarydf = pd.concat([summarydf, summary], ignore_index=True)
     quantiledf = pd.concat([quantiledf, quantiles], ignore_index=True)
