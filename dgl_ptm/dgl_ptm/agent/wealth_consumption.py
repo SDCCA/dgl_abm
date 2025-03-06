@@ -328,7 +328,7 @@ def  _nn_bellman_past_shock_consumption(model_graph,model_params, timestep, devi
     #print("Cleaning output and checking for violations")
 
     # Clean Consumption
-    print(f"Setting {torch.sum(model_graph.ndata['wealth_consumption']<0)} negative consumption predictions to zero,{torch.sum(model_graph.ndata['wealth_consumption']<-0.1)} were less than -0.1 .")
+    print(f"Setting {torch.sum(pred[:,1]*cons_scale<0)} negative consumption predictions to zero,{torch.sum(pred[:,1]*cons_scale<-0.1)} were less than -0.1 .")
     model_graph.ndata['wealth_consumption']=(pred[:,1]*cons_scale).clamp_(min=0)
     print( f"Based on alpha: {model_graph.ndata['alpha'][0:5]}")
     print(f'Based on k: {model_graph.ndata["wealth"][0:5]}')
@@ -412,7 +412,7 @@ def  _nn_bellman_past_shock_consumption_no_adapt(model_graph,model_params, times
     # print("Cleaning output and checking for violations")
 
     # Clean Consumption
-    print(f"Setting {torch.sum(model_graph.ndata['wealth_consumption']<0)} negative consumption predictions to zero,{torch.sum(model_graph.ndata['wealth_consumption']<-0.1)} were less than -0.1 .")
+    print(f"Setting {torch.sum(pred[:,1]*cons_scale<0)} negative consumption predictions to zero,{torch.sum(pred[:,1]*cons_scale<-0.1)} were less than -0.1 .")
     model_graph.ndata['wealth_consumption']=(pred[:,0]*cons_scale).clamp_(min=0)
 
     # Check for violations

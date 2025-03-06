@@ -333,11 +333,22 @@ class PovertyTrapModel(Model):
         # Record global theta in config yaml file.
         self.save_model_parameters(overwrite=True)
 
-    def _set_global_theta(self):
-        assert not(self.steering_parameters['global_theta'] is not None and self.steering_parameters['global_theta_dist'] is not None), 'Conflict: global_theta and global_theta_dist are both specified. Please specify only one.'             
+    def _set_global_theta(self):             
         if self.steering_parameters['global_theta'] is not None:
-            assert len(self.steering_parameters['global_theta']) == self.config.step_target, 'When supplying a list of shocks, the length of global_theta must be equal to the step target.'
-            return torch.tensor(self.steering_parameters['global_theta'])
+            if len(self.steering_parameters['global_theta']) == self.config.step_target:
+                return torch.tensor(self.steering_parameters['global_theta'])
+            if len(self.steering_parameters['global_theta']) < self.config.step_target:
+                print(f"WARNING: Supplied global_theta is not of sufficient length to reach step_target. Remaining values will be drawn from global_theta_dist: {self.steering_parameters['global_theta_dist'].__dict__}.")
+                return torch.cat([torch.tensor(self.steering_parameters['global_theta']),
+                        sample_distribution(
+                            self.steering_parameters['global_theta_dist'].__dict__,
+                            self.config.step_target - len(self.steering_parameters['global_theta'])
+                        )
+                    ]
+                )
+            else:
+                print("WARNING: Supplied global_theta is longer than step_target. Original global_theta will be retained in the config file, but superfluous values will not be used in the model run.")
+                return torch.tensor(self.steering_parameters['global_theta'])                
         else:
             return sample_distribution(
                 self.steering_parameters['global_theta_dist'].__dict__,
