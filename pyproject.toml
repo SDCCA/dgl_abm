@@ -9,7 +9,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 authors = [
-    { name = "Meiert W. Grootes", email = "m.grootes@esciencecenter.nl" }
+    {name = "Meiert W. Grootes", email = "m.grootes@esciencecenter.nl"},
+    {name = "Debraj Roy"},
+    {name = "Fakhereh Sarah Alidoost"},
+    {name = "Pranav Chandramouli"},
+    {name = "Thijs van Lankveld"},
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -18,17 +22,28 @@ classifiers = [
     "",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = []
+dependencies = [
+    "dask",
+    "dgl",
+    "numpy",
+    "pydantic>=2",
+    "scipy==1.10.1",
+    "torch==2.1.1",
+    "torchdata==0.7.1",
+    "torchvision",
+    "torchaudio",
+    "xarray",
+    "zarr",
+]
 description = "ABM modelling framework using networks and tensor algebra supported by the DGL library"
-keywords = ["ABM"," Tensor"," PyTorch"]
+keywords = ["ABM", "Graph", "PyTorch", "Tensor"]
 license = {file = "LICENSE"}
 name = "dgl_abm"
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.8"
+requires-python = ">=3.11, <3.12"
 version = "0.1.0"
 
 [project.optional-dependencies]
@@ -85,7 +100,7 @@ extras = dev
 [tool.ruff]
 line-length = 120
 output-format = "concise"
-extend-exclude = ["docs"]
+extend-exclude = ["docs", "build"]
 
 [tool.ruff.lint]
 # Allow unused variables when underscore-prefixed.

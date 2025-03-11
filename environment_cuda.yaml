@@ -1,0 +1,11 @@
+# To run dgl_ptm on an infra with NVIDIA GPUs, you need to install cuda version
+# of dgl. This environment file specifies the dgl conda channel and cuda version
+# of dgl.
+name: dgl_abm_cuda
+channels:
+  - defaults
+dependencies:
+  - python>=3.11,<3.12
+  - dglteam/label/cu121::dgl
+  - pip:
+    - -e ./dgl_abm  # install dgl_abm in the editable mode, # TODO change to the actual pypi packages

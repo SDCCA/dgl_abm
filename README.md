@@ -22,13 +22,14 @@ The project setup is documented in [project_setup.md](project_setup.md). Feel fr
 
 ## Installation
 
-To install dgl_abm from GitHub repository, do:
+To install dgl_abm from GitHub repository*, do:
 
 ```console
 git clone git@github.com:SDCCA/dgl_abm.git
 cd dgl_abm
 python -m pip install .
 ```
+\* - the project is currently under development and is not release-ready yet.
 
 ## Documentation
 
