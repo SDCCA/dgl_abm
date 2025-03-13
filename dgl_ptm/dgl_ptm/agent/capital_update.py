@@ -12,14 +12,13 @@ def capital_update(model_graph, model_params=None, timestep=None, method='defaul
     
     Args:
         model_graph (DGLGraph): All agent node and edge data
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration/initialization
         timestep (int): Current model time
         method (str): Method for updating capital
 
     Returns:
         None
     """
-    print(method)
     if method in ['pseudo','default']:
         _pseudo_capital_update(model_graph)
     elif method == 'present_shock':
@@ -49,7 +48,7 @@ def _agent_capital_update(model_graph,model_params,timestep):
 
     Args:
         model_graph (DGLGraph): All agent data    
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration/initialization
         timestep (int): Current model time
 
     Returns:
@@ -69,7 +68,7 @@ def _agent_capital_past_shock_update(model_graph,model_params,timestep):
 
     Args:
         model_graph (DGLGraph): All agent data    
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration/initialization
         timestep (int): Current model time
 
     Returns:

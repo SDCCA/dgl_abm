@@ -1,3 +1,5 @@
+#noqa
+
 import torch
 import dgl 
 from dgl.sparse import spmatrix
@@ -82,10 +84,10 @@ def construct_neighbour_field_tensors(selm,adjm):
     Output:
         rowtensor (torch.tensor): row tensor of the neighbour field matrix, compatible
             with sparse format
-        coltensor (torch.tensor): column tensor of the neighbour field matrix, compatible
+        coltensor (torch.tensor): column tensor of the neighbour field matrix, 
+            compatible with sparse format
+        ltensor (torch.tensor): link tensor of the neighbour field matrix, compatible 
             with sparse format
-        ltensor (torch.tensor): link tensor of the neighbour field matrix, compatible with
-            sparse format
         valtensor (torch.tensor): tensor with edge weights of link jk
     """
     rtl = list()

@@ -67,7 +67,7 @@ def _agent_capital_update(model_graph,model_params,timestep):
 
     Args:
         model_graph (DGLGraph): All agent data
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration/initialization
         timestep (int): Current model time
 
     Returns:
@@ -82,7 +82,7 @@ def _agent_theta_update(model_graph,model_params,timestep):
 
     Args:
         model_graph (DGLGraph): All agent data
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration /initialization
         timestep (int): Current model time
 
     Returns:
@@ -98,7 +98,7 @@ def _agent_consumption_update(model_graph, model_params, timestep, device):
     
     Args:
         model_graph (DGLGraph): All agent data
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration/initialization
         timestep (int): Current model time
         device (torch.device): Device on which to perform computations
 
@@ -113,7 +113,7 @@ def _agent_income_update(model_graph, model_params, device):
     
     Args:
         model_graph (DGLGraph): All agent data
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration/initialization
         device (torch.device): Device on which to perform computations
     
     Returns:

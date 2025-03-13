@@ -121,7 +121,7 @@ def ptm_step(agent_graph, device, timestep, params):
         local_attachment_homophily(
             agent_graph,
             device,
-            n_FoF_links = int(params['local_ratio']*agent_graph.number_of_nodes()),
+            n_links = int(params['local_ratio']*agent_graph.number_of_nodes()),
             homophily_parameter = params['homophily_parameter'],
             characteristic_distance = params['characteristic_distance'],
             truncation_weight = params['truncation_weight']

@@ -57,8 +57,8 @@ generator = torch.manual_seed(0)
 
 logger = logging.getLogger(__name__)
 
-def sample_distribution_tensor(type, dist_parameters, n_samples, round=False, 
-                               decimals=None): # noqa: PLR0912, E501
+def sample_distribution_tensor(type, dist_parameters, n_samples,#noqa PLR0912
+                                round=False, decimals=None):
     """Generate and return samples from different distributions.
 
     Args:

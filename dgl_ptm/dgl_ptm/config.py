@@ -12,18 +12,21 @@ from pathlib import Path
 import torch
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, field_validator, typing
+from typing import Literal
+
 
 logger = logging.getLogger(__name__)
 
 class MThetaDist(BaseModel):
     """Base class for global_theta distribution."""
     type: str = "multinomial"
-    parameters: list[int | float | list[int | float]] = [[0.02, 0.03, 0.05, 0.9], [0.7, 0.8, 0.9, 1]]
+    parameters: list[int | float | list[int | float]] = [[0.02, 0.03, 0.05, 0.9], 
+                                                         [0.7, 0.8, 0.9, 1]]
     round: bool = False
     decimals: int | None = None
 
     @field_validator("parameters")
-    def _convert_parameters(cls, v, values):
+    def _convert_parameters(cls, v, values): #noqa N805
         if values.data["type"] == "multinomial":
             for i in v:
                 if not isinstance(i, list):
@@ -38,6 +41,7 @@ class MThetaDist(BaseModel):
 
 class SteeringParams(BaseModel):
     """Base class for steering parameters.
+
     These are the parameters used within each step of the model.
     """
     edata: list[str] | None = ["all"]
@@ -72,19 +76,19 @@ class SteeringParams(BaseModel):
     data_collection_list: list[int] | None = None
 
     @field_validator("adapt_m")
-    def _convert_adapt_m(cls, v):
+    def _convert_adapt_m(cls, v):#noqa N805
         return torch.tensor(v)
 
     @field_validator("adapt_cost")
-    def _convert_adapt_cost(cls, v):
+    def _convert_adapt_cost(cls, v):#noqa N805
         return torch.tensor(v)
 
     @field_validator("tech_gamma")
-    def _convert_tech_gamma(cls, v):
+    def _convert_tech_gamma(cls, v):#noqa N805
         return torch.tensor(v)
 
     @field_validator("tech_cost")
-    def _convert_tech_cost(cls, v):
+    def _convert_tech_cost(cls, v):#noqa N805
         return torch.tensor(v)
 
     # Make sure pydantic validates the default values
@@ -106,7 +110,7 @@ class AlphaDist(BaseModel):
     decimals: int | None = None
 
     @field_validator("parameters")
-    def _convert_parameters(cls, v):
+    def _convert_parameters(cls, v):#noqa N805
         return torch.tensor(v)
 
     # Make sure pydantic validates the default values
@@ -121,7 +125,7 @@ class CapitalDist(BaseModel):
     decimals: int | None = None
 
     @field_validator("parameters")
-    def _convert_parameters(cls, v):
+    def _convert_parameters(cls, v):#noqa N805
         return torch.tensor(v)
 
     # Make sure pydantic validates the default values
@@ -136,7 +140,7 @@ class LambdaDist(BaseModel):
     decimals: int | None = 1
 
     @field_validator("parameters")
-    def _convert_parameters(cls, v):
+    def _convert_parameters(cls, v):#noqa N805
         return torch.tensor(v)
 
     # Make sure pydantic validates the default values
@@ -151,7 +155,7 @@ class SigmaDist(BaseModel):
     decimals: int | None = 1
 
     @field_validator("parameters")
-    def _convert_parameters(cls, v):
+    def _convert_parameters(cls, v):#noqa N805
         return torch.tensor(v)
 
     # Make sure pydantic validates the default values
@@ -166,7 +170,7 @@ class TechnologyDist(BaseModel):
     decimals: int | None = None
 
     @field_validator("parameters")
-    def _convert_parameters(cls, v):
+    def _convert_parameters(cls, v):#noqa N805
         return v if None in v else torch.tensor(v)
 
     # Make sure pydantic validates the default values
@@ -181,7 +185,7 @@ class AThetaDist(BaseModel):
     decimals: int | None = None
 
     @field_validator("parameters")
-    def _convert_parameters(cls, v):
+    def _convert_parameters(cls, v):#noqa N805
         return torch.tensor(v)
 
     # Make sure pydantic validates the default values
@@ -196,7 +200,7 @@ class SensitivityDist(BaseModel):
     decimals: int | None = None
 
     @field_validator("parameters")
-    def _convert_parameters(cls, v):
+    def _convert_parameters(cls, v):#noqa N805
         return torch.tensor(v)
 
     # Make sure pydantic validates the default values
@@ -205,10 +209,14 @@ class SensitivityDist(BaseModel):
 
 class Config(BaseModel):
     """Base class for configuration parameters.
+
     These are the parameters used by the overarching process.
     """
-    model_identifier: str = Field("test", alias='_model_identifier') # because pydantic does not like underscores
-    description: str = "" # Never used to influence processing. This value is meant purely to add a description to identify a parameter setting.
+    # because pydantic does not like underscores
+    model_identifier: str = Field("test", alias='_model_identifier') 
+    # Never used to influence processing. This value is meant purely to add a 
+    # description to identify a parameter setting.
+    description: str = "" 
     device: str = "cpu"
     seed: int = 42
     number_agents: PositiveInt = 100
@@ -239,7 +247,7 @@ class Config(BaseModel):
         )
 
     @classmethod
-    def from_yaml(cls, config_file):
+    def from_yaml(cls, config_file):#noqa N805
         """Read configs from a config.yaml file.
 
         If key is not found in config.yaml, the default value is used.
@@ -255,7 +263,7 @@ class Config(BaseModel):
         return cls(**cfg)
 
     @classmethod
-    def from_dict(cls, cfg):
+    def from_dict(cls, cfg):#noqa N805
         """Read configs from a dict."""
         if not isinstance(cfg, dict):
             raise TypeError("Input must be a dictionary.")

@@ -3,8 +3,8 @@
 Function:
 - local_attachment_homophily: Attempts triad closure with a new edge
 """
+import dgl
 import torch
-import dgl 
 
 
 def local_attachment_homophily(graph,device,n_links, homophily_parameter = None, 
@@ -70,8 +70,8 @@ def local_attachment_homophily(graph,device,n_links, homophily_parameter = None,
                                 (torch.abs(wealth_diff) - characteristic_distance)))
     finiteweights = torch.isfinite(potential_weights)
     potential_weights[~finiteweights] = 0.
-    potential_weights = torch.where(potential_weights > (truncation_weight, 
-                                                potential_weights, truncation_weight))
+    potential_weights = torch.where(potential_weights > truncation_weight, 
+                                                potential_weights, truncation_weight)
 
     successful_links = potential_weights > prob_tensor
 

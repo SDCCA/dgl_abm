@@ -12,7 +12,7 @@ Functions:
 """
 import torch
 
-from ..util.utils import load_consumption_model, scale_input
+from dgl_ptm.util.utils import load_consumption_model, scale_input
 
 
 def wealth_consumption(model_graph, model_params, timestep=None, device=None, 
@@ -21,7 +21,7 @@ def wealth_consumption(model_graph, model_params, timestep=None, device=None,
 
     Args:
         model_graph (DGLGraph): All agent node and edge data
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration/initialization
         timestep (int): Current model time
         device (torch.device): Device on which to perform computations
         method (str): Method used for deciding consumption
@@ -61,7 +61,7 @@ def _bellman_wealth_consumption(model_graph,model_params):
 
     Args:
         model_graph (DGLGraph): All agent node and edge data
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration/initialization
 
     Returns:
         None
@@ -179,7 +179,7 @@ def  _nn_bellman_past_shock_consumption(model_graph,model_params, timestep, devi
 
     Args:
         model_graph (DGLGraph): All agent node and edge data
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration/initialization
         timestep (int): Current model time
         device (torch.device): Device on which to perform computations
 

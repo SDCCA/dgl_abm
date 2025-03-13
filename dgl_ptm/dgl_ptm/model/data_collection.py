@@ -13,7 +13,7 @@ from pathlib import Path
 import xarray as xr
 
 
-def data_collection(agent_graph,
+def data_collection(agent_graph, #noqa PLR0912
                     timestep,
                     npath='./agent_data',
                     epath='./edge_data',
