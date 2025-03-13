@@ -22,7 +22,7 @@ def agent_update(model_graph, model_params=None, device=None,
     
     Args:
         model_graph (DGLGraph): All agent node and edge data
-        model_params (dict): Parameters specified in model configuration and initialization
+        model_params (dict): Parameters specified in model configuration/initialization
         device (torch.device): Device on which to perform computations
         timestep (int): Current model time
         method (str): Method for updating capital
