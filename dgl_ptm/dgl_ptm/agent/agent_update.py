@@ -82,7 +82,7 @@ def _agent_theta_update(model_graph,model_params,timestep):
 
     Args:
         model_graph (DGLGraph): All agent data
-        model_params (dict): Parameters specified in model configuration /initialization
+        model_params (dict): Parameters specified in model configuration/initialization
         timestep (int): Current model time
 
     Returns:

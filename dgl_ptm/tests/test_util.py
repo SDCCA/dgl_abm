@@ -1,7 +1,8 @@
-import pytest
-import dgl_ptm
 import os
 
+import pytest
+
+import dgl_ptm
 from dgl_ptm.util.network_metrics import average_degree
 
 os.environ["DGLBACKEND"] = "pytorch"

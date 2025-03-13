@@ -8,12 +8,11 @@ pydantic which is a data validation library.
 
 import logging
 from pathlib import Path
+from typing import Literal
 
 import torch
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, field_validator, typing
-from typing import Literal
-
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +66,7 @@ class SteeringParams(BaseModel):
     tech_gamma: list[float] = [0.3, 0.35, 0.45]
     tech_cost: list[float] = [0.0, 0.15, 0.65]
     del_method: str = "probability"
-    del_threshold: int | float | None | typing.Literal["balance"] = 0.05
+    del_threshold: int | float | None | Literal["balance"] = 0.05
     noise_ratio: float = 0.05
     local_ratio: float = 0.25
     truncation_weight: float = 1.0e-10
