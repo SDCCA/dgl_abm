@@ -9,10 +9,18 @@ module load 2023
 module load CUDA/12.1.1 
 module load cuDNN/8.9.2.26-CUDA-12.1.1 
 
+if ! mount | grep -q "/tmp/UvA-RD"; then
+    echo "Mounting UvA-RD..."
+    rclone -vv mount --use-cookies --timeout 24h UvA-RD:IVI-FNWI-328-DGL-PTM\ \(Projectfolder\) /tmp/UvA-RD --vfs-cache-mode full --daemon
+else
+    echo "/tmp/UvA-RD is already mounted."
+fi
+
 log_file="default_run_times.log"
 > "$log_file" 
 
 # Environment (Snellius specific)
+source /home/vgaribay/anaconda3/etc/profile.d/conda.sh
 source /home/user/anaconda3/etc/profile.d/conda.sh
 #conda env create -f ../environment.yml --name dgl_ptm_gpu
 conda activate dgl_ptm_gpu

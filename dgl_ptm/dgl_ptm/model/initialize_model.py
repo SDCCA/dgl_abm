@@ -1,4 +1,35 @@
-"""This module contains the model class and functions to initialize the model."""
+"""This module contains the model class and functions to initialize the model.
+
+Classes:
+- Model: Abstract model class
+    - create_network: Creates a network connecting agents
+    - step: Performs a single step of the model
+    - run: Runs the model for each step until the step_target is reached
+- PovertyTrapModel: Poverty Trap model class
+    - save_model_parameters: Saves model parameters to a .yaml file
+    - set_model_parameters: Loads or sets model parameters
+    - initialize_model: Initializes a model
+    - create_network: Assigns edges between agent nodes 
+    - initialize_global_properties: Initializes global properties/values of the model
+    - _set_global_theta: Sets and records model theta
+    - initialize_agent_properties: Initializes and assign agent properties
+    - _initialize_agents_adapttable: Initializes agent adaptation measure knowledge
+    - _initialize_agents_theta: Initializes agent theta, perception of shock factor
+    - _initialize_agents_sensitivity: Initializes agent sensitivity
+    - _initialize_agents_capital: Initializes agent k, capital
+    - _initialize_agents_alpha: Initializes agent alpha, aptitude for income generation
+    - _initialize_agents_lam: Initializes agent lambda, savings propensity
+    - _initialize_agents_sigma: Initializes agent sigma, risk aversion
+    - step: Performs a single step of the model 
+    - run: Runs the model for each step until the step_target is reached
+
+Function(s):
+- sample_distribution_tensor: Acquires samples from different distributions
+- sample_distribution: Formats distribution arguments
+- _make_path_unique: Establishes a unique save path
+- _save_model: Saves the model state
+- _load_model: Loads a saved model state
+"""
 
 import copy
 import logging
@@ -13,16 +44,93 @@ from dgl_ptm.agentInteraction.weight_update import weight_update
 from dgl_ptm.config import CONFIG, Config
 from dgl_ptm.model.step import ptm_step
 from dgl_ptm.network.network_creation import network_creation
-from dgl_ptm.util.network_metrics import average_degree, average_weighted_degree, node_degree, node_weighted_degree
-from dgl_ptm.environment.grid_creation import grid_creation
-from dgl_ptm.environment.grid_assignment import grid_assignment
-from dgl_ptm.util.utils import sample_distribution_tensor
+from dgl_ptm.util.network_metrics import (
+    average_degree,
+    average_weighted_degree,
+    node_degree,
+    node_weighted_degree,
+)
 
 # Set the seed of the random number generator
 # this is global and will affect all random number generators
 generator = torch.manual_seed(0)
 
 logger = logging.getLogger(__name__)
+
+def sample_distribution_tensor(type, dist_parameters, n_samples,#noqa PLR0912
+                                round=False, decimals=None):
+    """Generate and return samples from different distributions.
+
+    Args:
+        type (str): Type of distribution to sample
+        dist_parameters (list): array of parameters as required/supported by
+            requested distribution type
+        n_samples (int): number of samples to return (as 1d tensor)
+        round (bool): optional, whether the samples are to be rounded
+        decimals (int): optional, required if round is specified. decimal places to
+            round to
+    Returns:
+        torch.Tensor: samples from the specified distribution 
+    """
+    # check if each item in dist_parameters are torch tensors, if not convert them
+    for i, item in enumerate(dist_parameters):
+        # if item has dtype NoneType, raise error
+        if item is not None and not isinstance(item, torch.Tensor):
+                dist_parameters[i] = torch.tensor(item)
+
+    if not isinstance(n_samples, torch.Tensor):
+        n_samples = torch.tensor(n_samples)
+
+    if type == 'uniform':
+        dist = torch.distributions.uniform.Uniform(
+            dist_parameters[0], dist_parameters[1]
+            ).sample([n_samples])
+    elif type == 'normal':
+        dist = torch.distributions.normal.Normal(
+            dist_parameters[0], dist_parameters[1]
+            ).sample([n_samples])
+    elif type == 'bernoulli':
+        dist = torch.distributions.bernoulli.Bernoulli(
+            probs=dist_parameters[0], logits=dist_parameters[1], validate_args=None
+            ).sample([n_samples])
+    elif type == 'multinomial':
+        multinomial_samples = torch.multinomial(
+            torch.tensor(dist_parameters[0]), n_samples, replacement=True
+            )
+        dist = torch.gather(torch.Tensor(dist_parameters[1]), 0, multinomial_samples)
+    elif type == 'truncnorm':
+        # dist_parameters are mean, standard deviation, min, and max.
+        # cdf(x)=(1+erf(x/2^0.5))/2. cdf^-1(x)=2^0.5*erfinv(2*x-1).
+        trunc_val_min = (dist_parameters[2]-dist_parameters[0])/dist_parameters[1]
+        trunc_val_max = (dist_parameters-dist_parameters[0])/dist_parameters[1]
+        cdf_min = (1 + torch.erf(trunc_val_min / torch.sqrt(torch.tensor(2.0))))/2
+        cdf_max = (1 + torch.erf(trunc_val_max / torch.sqrt(torch.tensor(2.0))))/2
+
+        uniform_samples = torch.rand(n_samples)
+        inverse_transform = torch.erfinv(
+            2 *(cdf_min + (cdf_max - cdf_min) * uniform_samples) - 1
+            )
+        sample_ppf = torch.sqrt(torch.tensor(2.0)) * inverse_transform
+
+        dist = dist_parameters[0] + dist_parameters[1] * sample_ppf
+    elif type == 'beta':
+        dist = torch.distributions.beta.Beta(dist_parameters[0], dist_parameters[1]
+            ).sample([n_samples])
+    else:
+        raise NotImplementedError(
+            'Currently only uniform, normal, multinomial, and '
+            'bernoulli distributions are supported'
+            )
+
+    if round:
+        if decimals is None:
+            raise ValueError(
+                'rounding requires decimals of rounding accuracy to be specified'
+                )
+        else:
+            return torch.round(dist,decimals=decimals)
+    else:
+        return dist
 
 def sample_distribution(distribution, n_samples):
     """Sample from a distribution."""
@@ -72,14 +180,14 @@ class PovertyTrapModel(Model):
     """Poverty Trap model as derived model class."""
 
     def __init__(self, *, model_identifier, root_path = '.'):
-        """Create a new PVT model instance.
+        """Create a new PTM instance.
 
-        Checks whether a model identifier has been specified.
+        Note: Checks whether a model identifier has been specified.
 
-        param: model_identifier: str, required. Identifier for the model. Used
-        to save and load model states.
-        param: root_path: str, optional. Root path where to store the model data
-        and states.
+        Args:
+            model_identifier (str): identifier for the model. Used to save and load
+                model states.
+            root_path (str): optional, root path for model data and state storage
         """
         super().__init__(model_identifier = model_identifier, root_path = root_path)
 
@@ -94,7 +202,18 @@ class PovertyTrapModel(Model):
         self.version = version_path.read_text().splitlines()[0]
 
     def save_model_parameters(self, overwrite = False):
-        """Save model parameters to a yaml file."""
+        """Save model parameters to a yaml file.
+        
+        Arg:
+            overwrite (bool): optional, whether to overwrite existing file.
+        
+        Returns:
+            None
+
+        Effects:
+            Saves the model parameters to cfg_filename, potentially overwriting 
+            existing values.
+        """
         cfg_filename = f'{self.model_dir}/{self._model_identifier}_{self.step_count}'
         if overwrite:
             cfg_filename = f'{cfg_filename}.yaml'
@@ -103,16 +222,17 @@ class PovertyTrapModel(Model):
         self.config.to_yaml(cfg_filename)
         logger.warning(f'The model parameters are saved to {cfg_filename}.')
 
-    def set_model_parameters(self, *, parameter_file_path=None, overwrite = False, **kwargs):  # noqa: E501
+    def set_model_parameters(self, *, parameter_file_path=None, overwrite = False, 
+                             **kwargs):  # noqa: E501
         """Load or set model parameters.
 
-        :param parameterFlePath: optional, path to parameter file. If not,
-            default values are used.
-        :param **kwargs: flexible passing of mode parameters. Only those
-                         supported by the model are accepted. If parameters are
-                         passed, non-specifed parameters will be set with
-                         defaults.
-
+        Args:
+            parameter_file_path (str): optional, path to parameter file. If not,
+                default values are used.
+            overwrite (bool): optional, whether to overwrite existing file.
+            **kwargs (dict): flexible passing of mode parameters. Only those supported 
+                by the model are accepted. If parameters are passed, non-specified
+                parameters will be set with defaults.
         """
         cfg = CONFIG # default values
 
@@ -179,16 +299,19 @@ class PovertyTrapModel(Model):
     def initialize_model(self, restart = False):
         """Initialize a model.
 
-        It creates network and initialize agent properties in correct order.
+        This function assigns agent nodes a network and initializes agent properties 
+        and global properties in correct order.
 
-        Params:
-            restart: boolean or a pair of ints, optional.
-            If True, the model is initialized from the last checkpoint,
-            if a pair of ints, the model is initialized at that step from that
-            milestone,
-            e.g (2,0) would be the first milestone at step 2
-            and (2,1) would be the second milestone at step 2.
-            Default False.
+        Args:
+            restart (bool or tuple[int]): optional, defines checkpoint or milestone 
+                from which to resume model progress
+                
+        Notes: If restart is True, the model is initialized from the last recorded 
+            checkpoint. If restart is a pair of integers, the model is initialized 
+            from the milestone specified with (step,instance). E.g, (2,0) represents 
+            the first instance of a milestone recorded at step 2 and, if multiple 
+            instances of a milestone exist, (2,1) represents the second instance of a 
+            milestone recorded at step 2.
         """
         self.inputs = None
         if isinstance(restart, bool):
@@ -225,8 +348,8 @@ class PovertyTrapModel(Model):
         self.initialize_global_properties()
         self.initialize_agent_properties()
         self.graph = self.graph.to(self.config.device)
-
-        print(f'{self.graph.number_of_nodes()} agents initialized on {self.graph.device} device')
+        print(f'{self.graph.number_of_nodes()} agents initialized on '
+              f'{self.graph.device} device')
 
         weight_update(
             self.graph,
@@ -285,17 +408,36 @@ class PovertyTrapModel(Model):
         """
         # Set model theta
         self.config.steering_parameters.global_theta = self._set_global_theta()
-        self.steering_parameters['global_theta'] = self.config.steering_parameters.global_theta
-        self.steering_parameters['global_theta'] = self.steering_parameters['global_theta'].to(self.config.device)  # noqa: E501
+        self.steering_parameters['global_theta'] = (
+                                    self.config.steering_parameters.global_theta)
+        self.steering_parameters['global_theta'] = (
+                self.steering_parameters['global_theta'].to(self.config.device))
 
         # Record global theta in config yaml file.
         self.save_model_parameters(overwrite=True)
 
-    def _set_global_theta(self):
-        assert not(self.steering_parameters['global_theta'] is not None and self.steering_parameters['global_theta_dist'] is not None), 'Conflict: global_theta and global_theta_dist are both specified. Please specify only one.'             
+    def _set_global_theta(self):             
         if self.steering_parameters['global_theta'] is not None:
-            assert len(self.steering_parameters['global_theta']) == self.config.step_target, 'When supplying a list of shocks, the length of global_theta must be equal to the step target.'
-            return torch.tensor(self.steering_parameters['global_theta'])
+            if len(self.steering_parameters['global_theta']) == self.config.step_target:
+                return torch.tensor(self.steering_parameters['global_theta'])
+            if len(self.steering_parameters['global_theta']) < self.config.step_target:
+                print(f"WARNING: Supplied global_theta is not of sufficient length "
+                      f"to reach step_target. Remaining values will be drawn from "
+                      f"global_theta_dist: "
+                      f"{self.steering_parameters['global_theta_dist'].__dict__}.")
+                return torch.cat([torch.tensor(
+                        self.steering_parameters['global_theta']),sample_distribution(
+                            self.steering_parameters['global_theta_dist'].__dict__,
+                            self.config.step_target - len(
+                                self.steering_parameters['global_theta'])
+                        )
+                    ]
+                )
+            else:
+                print("WARNING: Supplied global_theta is longer than step_target. "
+                      "Original global_theta will be retained in the config file, "
+                      "but superfluous values will not be used in the model run.")
+                return torch.tensor(self.steering_parameters['global_theta'])
         else:
             return sample_distribution(
                 self.steering_parameters['global_theta_dist'].__dict__,
@@ -309,7 +451,7 @@ class PovertyTrapModel(Model):
 
         Note: agents are represented as nodes of the model graph.
         Values are initialized as tensors of length corresponding to number of
-        agents, with vaues subsequently being assigned to the nodes.
+        agents, with values subsequently being assigned to the nodes.
         """
         agents_capital = self._initialize_agents_capital()
         agents_alpha = self._initialize_agents_alpha()
@@ -348,16 +490,19 @@ class PovertyTrapModel(Model):
 
 
     def _initialize_agents_adapttable(self):
-        """Initialize agent adaptation measure knowledge, currently uniform."""
+        """Initialize agent adaptation measure knowledge.
+        
+        Note: Currently uniform
+        """
         return torch.stack(
             [self.steering_parameters['adapt_m'],
             self.steering_parameters['adapt_cost']]
             ).repeat(self.config.number_agents,1,1)
 
     def _initialize_agents_theta(self):
-        """Initialize agent theta.
+        """Initialize agent theta, perception of shock factor.
 
-        The agent theta will be a 1d tensor sampled from the specified
+        The agent theta will be a 1-D tensor sampled from the specified
         initial theta distribution.
         """
         return sample_distribution(
@@ -368,7 +513,7 @@ class PovertyTrapModel(Model):
     def _initialize_agents_sensitivity(self):
         """Initialize agent sensitivity.
 
-        The agent sensitivity will be a 1d tensor sampled from the
+        The agent sensitivity will be a 1-D tensor sampled from the
         specified initial sensitivity distribution.
         """
         return sample_distribution(
@@ -377,9 +522,9 @@ class PovertyTrapModel(Model):
             )
 
     def _initialize_agents_capital(self):
-        """Initialize agent captial.
+        """Initialize agent k, capital.
 
-        The agent captial will be a 1d tensor sampled from the specified
+        The agent captial will be a 1-D tensor sampled from the specified
         initial capital distribution.
         """
         return sample_distribution(
@@ -388,9 +533,9 @@ class PovertyTrapModel(Model):
             )
 
     def _initialize_agents_alpha(self):
-        """Initialize agent alpha.
+        """Initialize agent alpha, aptitude for income generation.
 
-        The agent alpha will be a 1d tensor sampled from the specified
+        The agent alpha will be a 1-D tensor sampled from the specified
         initial alpha distribution.
         """
         return sample_distribution(
@@ -399,9 +544,9 @@ class PovertyTrapModel(Model):
             )
 
     def _initialize_agents_lam(self):
-        """Initialize agent lambda.
+        """Initialize agent lambda, savings propensity.
 
-        The agent lambda will be a 1d tensor sampled from the specified
+        The agent lambda will be a 1-D tensor sampled from the specified
         initial lambda distribution.
         """
         return sample_distribution(
@@ -410,7 +555,11 @@ class PovertyTrapModel(Model):
             )
 
     def _initialize_agents_sigma(self):
-        """Initialize agent sigma as a 1d tensor."""
+        """Initialize agent sigma, risk aversion.
+        
+        The agent sigma will be a 1-D tensor sampled from the specified
+        initial sigma distribution.
+        """
         return sample_distribution(
             self.config.sigma_dist.__dict__,
             self.config.number_agents
@@ -421,20 +570,22 @@ class PovertyTrapModel(Model):
     def step(self):
         """Perform a single step of the model.
 
-        After the step, the current state (graph, generator, step, and version)
-        may be saved:
+        Note: After the step, the current state (graph, generator, step, and version)
+            may be saved for a checkpoint or milestone as specified in the model 
+            configuration.
 
-        The state can be saved with a fixed period (config.checkpoint_period) to
-        keep a restore point in case of a crash. Only the newest checkpoint is
-        retained.
+            config.checkpoint_period - The state can be saved with a fixed period to 
+                keep a restore point in case of a crash. Only the newest checkpoint is 
+                retained.
 
-        The state can also be saved at specific steps (config.milestones) to
-        store specific (important) states. For example, specific states can be
-        stored to start multiple runs from the same state with different
-        parameters going forward. All milstones are retained. The first
-        milestone at each time step X is stored in the subdirectory
-        `./milestone_X`; any subsequent milestones at the same time step X are
-        stored in the subdirectory `./milestone_X_i` (where i is the instance).
+            config.milestones - The state can also be saved at specific steps to
+                store specific (important) states. For example, specific states can be
+                stored to start multiple runs from the same state with different
+                parameters going forward. All milstones are retained. The first
+                milestone at a given timestep X is stored in the subdirectory
+                `./milestone_X`; any subsequent instances of the same milestones at 
+                timestep X are stored in the subdirectory `./milestone_X_i` 
+                (where i is the instance).
         """
         try:
             print(f'performing step {self.step_count} of {self.config.step_target}')
@@ -457,7 +608,7 @@ class PovertyTrapModel(Model):
 
         # save the model state every step reported by checkpoint_period and at
         # specific milestones.
-        # checkpoint saves overwrite the previous checkpoint; milestone get
+        # checkpoint saves overwrite the previous checkpoint; milestones get
         # unique folders.
         # Note that milestones are not created at the first step of a run;
         # this prevents duplicate saves when running from a milestone.
@@ -478,7 +629,7 @@ class PovertyTrapModel(Model):
                 'process_version': self.version
             }
 
-            # Note that a sinlge step could be both a checkpoint and a milestone.
+            # Note that a single step could be both a checkpoint and a milestone.
             # The checkpoint could be necessary to restore a crashed process while
             # the milestone is required output.
             if save_checkpoint:
@@ -502,16 +653,16 @@ class PovertyTrapModel(Model):
 def _make_path_unique(path, extension = ''):
     """Check whether a path already exists and make it unique if it does.
 
-    Paths are made unique by adding "_x" to the path,
-    where x is the lowest positive integer for which the path does not exist.
+    Note: Paths are made unique by adding "_x" to the path,
+        where x is the lowest positive integer for which the path does not exist.
 
-    Params:
-        path: the path to make unique
-        extension: str, optional, this extension is added to the path
-          after any integer added to make the path unique.
-          Note that for true extensions, this should start with a dot, e.g ".yaml"
+    Args:
+        path (str): the path to make unique
+        extension (str): optional, this extension is added to the path
+            after any integer added to make the path unique. For true extensions, 
+            this should start with a dot, e.g ".yaml"
     Returns:
-        the modified path, which does not currently exist.
+        str: the modified path, which does not currently exist
     """
     if Path(f'{path}{extension}').exists():
         instance = 1
@@ -525,7 +676,13 @@ def _make_path_unique(path, extension = ''):
     return path
 
 def _save_model(path, inputs):
-    """Save the graph, generator_state and process_version in files."""
+    """Save the graph, generator_state and process_version in files.
+    
+    Args:
+        path (str): path to save the model state files
+        inputs (dict): dictionary with the graph, generator_state, step_count and
+            process_version
+    """
     Path(path).mkdir(parents=True, exist_ok=True)
 
     # save the graph with a label
@@ -545,7 +702,14 @@ def _save_model(path, inputs):
 
 
 def _load_model(path):
-    # Load model graph
+    """Load the graph, generator_state and process_version from files.
+
+    Arg:
+        path (str): path to the model state files
+    Returns:
+        dict: dictionary with the loaded graph, generator_state, step_count and
+            process_version
+    """
     path_graph = Path(path) / "graph.bin"
     if not path_graph.is_file():
         raise ValueError(f'The path {path_graph} is not a file.')
