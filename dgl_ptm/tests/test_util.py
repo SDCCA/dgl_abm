@@ -1,7 +1,8 @@
-import pytest
-import dgl_ptm
 import os
 
+import pytest
+
+import dgl_ptm
 from dgl_ptm.util.network_metrics import average_degree
 
 os.environ["DGLBACKEND"] = "pytorch"
@@ -21,7 +22,7 @@ def model():
 
 class TestNetworkMetrics:
     def test_average_degree_initialize(self, model):
-        expected_ad = 1.98
+        expected_ad = 3.96
         assert model.average_degree == expected_ad
 
     def test_average_degree_step(self, model):

@@ -1,15 +1,24 @@
+"""This module contains miscelleneous utility functions.
+
+Functions:
+- load_consumption_model: Load a model from a particular .pth file and assemble
+- scale_input: Scale input data according to the input_scale dictionary provided
+"""
+import os
+
 import torch
-import dgl_ptm.util.nn_arch.nn_arch as nn_arch
+
+from dgl_ptm.util.nn_arch import nn_arch
 
 
+def load_consumption_model(nn_path,device):
+    """Load a model from a particular .pth file and assemble.
 
-
-def load_consumption_model(model_path,device):
-    '''Load a model from a particular .pth file and assemble using structure contained in nn_arch.py'''
+    Note: requires structure contained in nn_arch.py
+    """
     #print("entered load_consumption_model")
-
-    model_path="/Users/victoria/Documents/Scripts/Python/DGL-PTM/DGL_testing/nn_data/both_PudgeFiveLayer_1024/0409_175055/model_best.pth"
-    modelinfo = torch.load(model_path, map_location=torch.device(device))
+    nn_path=f'{os.getcwd()}{nn_path}'
+    modelinfo = torch.load(nn_path, map_location=torch.device(device))
 
 
     #print("loaded info")
@@ -23,9 +32,39 @@ def load_consumption_model(model_path,device):
     #print("loaded state dict")
 
 
-    if config['data_loader']['args']['cons_scale']==True:
-        scale=config['data_loader']['args']['scale']
+    if "cons_scale" in config["data_loader"]["args"]:
+        cons_scale=config['data_loader']['args']['cons_scale']
     else:
-        scale=1
+        cons_scale=1    
+    if "i_a_scale" in config["data_loader"]["args"]:
+        i_a_scale=config['data_loader']['args']['i_a_scale']
+    else:
+        i_a_scale=1
+    if "input_scale" in config["data_loader"]["args"]:
+        input_scale=config['data_loader']['args']['input_scale']
+    else:
+        input_scale={}
 
-    return model, scale
+
+    return model, cons_scale, i_a_scale, input_scale
+
+def scale_input(input_data, scale_dict,inputID="input",verbose=True): #noqa N803
+    """Scale input data according to the input_scale dictionary provided."""
+    if  scale_dict['dist'] in ["unif", "uniform"]:
+        a,b=scale_dict['params']
+        if verbose:
+            print(f"Scaling requested for {inputID}, Distribution:",scale_dict['dist'],
+                  " Parameters:", scale_dict['params'])
+        input_data= (input_data - a)/b
+        return input_data
+    elif  scale_dict['dist'] in ["norm", "normal"]:
+        mu, std = scale_dict['params']
+        if verbose:
+            print(f"Scaling requested for {inputID}, Distribution",scale_dict['dist'],
+                  " Parameters:", scale_dict['params'])
+        input_data = (input_data - mu)/std
+        return input_data
+    else:
+        print("ERROR: Input scaling was not in recognized format. Neural network "
+              "cannot be used as configured.")
+
