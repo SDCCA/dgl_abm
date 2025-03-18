@@ -80,15 +80,18 @@ def adjacency_matrix_with_edge_prop(graph,etype=None, eprop=None):
     )
 
 def construct_neighbour_field_tensors(selm,adjm):
+
     """Create infrastructure to support neighbour field matrix.
 
     This function creates the row tensor, column tensor, link tensor, and value tensor
     needed to construct the neighbour field matrix/tensor in sparse representation. 
     This is done by creating a list of the tensor representations for each element i,j 
     of the matrix of selected edges by adding row i and row j of the adjacency
-    matrix, and storing the result in row i, for each element an insttance of row i 
+    matrix, and storing the result in row i. For each element an insttance of row i 
     as well as the entry i,i is removed. The list is subsequently concatenated to obtain
     a single tensor representation.
+    In addition to the link tensor, which denotes the link status with an integer, the function also returns a value tensor with
+    with entries corresponding to the weight of edge j,k. neighbours wiith no direct connecton appear as > 0 values
     
     Notes:
         In addition to the link tensor, which denotes the link status with and integer, 
@@ -165,4 +168,6 @@ def neighbour_field_matrix(selm, adjm):
     nfmv = dgl.sparse.spmatrix(indices,nf[3],shape=selm.shape)
     nfmc = nfm.coalesce()
     nfmvc = nfmv.coalesce()
-    return nfmc, nfmvc 
+    ddnfmc, ddonesnfmc = matrix_utils.clear_symmetrical_duplicates(nfmc)
+    ddnfmvc = nfmvc - nfmvc*ddonesnfmc
+    return ddnfmc, ddnfmvc 
