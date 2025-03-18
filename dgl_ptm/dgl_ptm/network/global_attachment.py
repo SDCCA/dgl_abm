@@ -1,19 +1,29 @@
-#!/usr/bin/env python
-# coding: utf-8
+"""This module contains functions which establish new edges.
+
+Function(s):
+- global_attachment: Randomly forms edges between agents
+"""
 import dgl
 from dgl import AddEdge, AddReverse
 
+
 def global_attachment(agent_graph, device, ratio: float):
-    '''
-        global_attachment - randomly connects different agents globally based on a ratio
+    """Randomly connect agents globally based on a ratio.
 
-        Args:
-            agent_graph: DGLGraph with agent nodes and edges connecting agents
-            ratio: ratio of number of new edges to add to total existing edges in graph
+    Note: If an attempted connection already exists, it will not be added again.
 
-        Output:
-            Modified agent_graph with new edges introduced
-    '''
+    Args:
+        agent_graph (DGLGraph): All agent node and edge data
+        device: Device on which to perform computations
+        ratio (float): decimal ratio of number of new edges to add to total existing 
+            edges in graph
+
+    Returns:
+        None
+    
+    Effects:
+        Modifies agent_graph by introducing new edges
+    """
 
     # Add edges based on ratio
     agent_graph = AddEdge(ratio=ratio)(agent_graph)
