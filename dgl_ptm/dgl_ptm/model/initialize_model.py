@@ -24,7 +24,6 @@ Classes:
     - run: Runs the model for each step until the step_target is reached
 
 Function(s):
-- sample_distribution_tensor: Acquires samples from different distributions
 - sample_distribution: Formats distribution arguments
 - _make_path_unique: Establishes a unique save path
 - _save_model: Saves the model state
@@ -40,6 +39,7 @@ import dgl
 import torch
 from dgl.data.utils import load_graphs, save_graphs
 
+from dgl_ptm.util.utils import sample_distribution_tensor
 from dgl_ptm.agentInteraction.weight_update import weight_update
 from dgl_ptm.config import CONFIG, Config
 from dgl_ptm.model.step import ptm_step
@@ -56,81 +56,6 @@ from dgl_ptm.util.network_metrics import (
 generator = torch.manual_seed(0)
 
 logger = logging.getLogger(__name__)
-
-def sample_distribution_tensor(type, dist_parameters, n_samples,#noqa PLR0912
-                                round=False, decimals=None):
-    """Generate and return samples from different distributions.
-
-    Args:
-        type (str): Type of distribution to sample
-        dist_parameters (list): array of parameters as required/supported by
-            requested distribution type
-        n_samples (int): number of samples to return (as 1d tensor)
-        round (bool): optional, whether the samples are to be rounded
-        decimals (int): optional, required if round is specified. decimal places to
-            round to
-    Returns:
-        torch.Tensor: samples from the specified distribution 
-    """
-    # check if each item in dist_parameters are torch tensors, if not convert them
-    for i, item in enumerate(dist_parameters):
-        # if item has dtype NoneType, raise error
-        if item is not None and not isinstance(item, torch.Tensor):
-                dist_parameters[i] = torch.tensor(item)
-
-    if not isinstance(n_samples, torch.Tensor):
-        n_samples = torch.tensor(n_samples)
-
-    if type == 'uniform':
-        dist = torch.distributions.uniform.Uniform(
-            dist_parameters[0], dist_parameters[1]
-            ).sample([n_samples])
-    elif type == 'normal':
-        dist = torch.distributions.normal.Normal(
-            dist_parameters[0], dist_parameters[1]
-            ).sample([n_samples])
-    elif type == 'bernoulli':
-        dist = torch.distributions.bernoulli.Bernoulli(
-            probs=dist_parameters[0], logits=dist_parameters[1], validate_args=None
-            ).sample([n_samples])
-    elif type == 'multinomial':
-        multinomial_samples = torch.multinomial(
-            torch.tensor(dist_parameters[0]), n_samples, replacement=True
-            )
-        dist = torch.gather(torch.Tensor(dist_parameters[1]), 0, multinomial_samples)
-    elif type == 'truncnorm':
-        # dist_parameters are mean, standard deviation, min, and max.
-        # cdf(x)=(1+erf(x/2^0.5))/2. cdf^-1(x)=2^0.5*erfinv(2*x-1).
-        trunc_val_min = (dist_parameters[2]-dist_parameters[0])/dist_parameters[1]
-        trunc_val_max = (dist_parameters-dist_parameters[0])/dist_parameters[1]
-        cdf_min = (1 + torch.erf(trunc_val_min / torch.sqrt(torch.tensor(2.0))))/2
-        cdf_max = (1 + torch.erf(trunc_val_max / torch.sqrt(torch.tensor(2.0))))/2
-
-        uniform_samples = torch.rand(n_samples)
-        inverse_transform = torch.erfinv(
-            2 *(cdf_min + (cdf_max - cdf_min) * uniform_samples) - 1
-            )
-        sample_ppf = torch.sqrt(torch.tensor(2.0)) * inverse_transform
-
-        dist = dist_parameters[0] + dist_parameters[1] * sample_ppf
-    elif type == 'beta':
-        dist = torch.distributions.beta.Beta(dist_parameters[0], dist_parameters[1]
-            ).sample([n_samples])
-    else:
-        raise NotImplementedError(
-            'Currently only uniform, normal, multinomial, and '
-            'bernoulli distributions are supported'
-            )
-
-    if round:
-        if decimals is None:
-            raise ValueError(
-                'rounding requires decimals of rounding accuracy to be specified'
-                )
-        else:
-            return torch.round(dist,decimals=decimals)
-    else:
-        return dist
 
 def sample_distribution(distribution, n_samples):
     """Sample from a distribution."""
