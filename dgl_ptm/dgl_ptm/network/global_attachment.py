@@ -24,6 +24,7 @@ def global_attachment(agent_graph, device, ratio: float):
     Effects:
         Modifies agent_graph by introducing new edges
     """
+
     # Add edges based on ratio
     agent_graph = AddEdge(ratio=ratio)(agent_graph)
 
@@ -32,7 +33,8 @@ def global_attachment(agent_graph, device, ratio: float):
 
     # Remove duplicate edges
     # dgl.to_simple works only on device=cpu hence we move the graph to cpu:
-    agent_graph = dgl.to_simple(agent_graph.to('cpu'), return_counts='cnt')
+    # to_simple by default copies ndata but not edata, hence we need to copy edata explicitly.
+    agent_graph = dgl.to_simple(agent_graph.to('cpu'), return_counts='cnt', copy_edata=True)
     # move the graph back to user choice of device.
     # This is necessary for running on cuda or other hardware.
     agent_graph = agent_graph.to(device)
