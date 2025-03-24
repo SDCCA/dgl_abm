@@ -7,7 +7,7 @@ from dgl_ptm.environment.grid_creation import (grid_creation,
                                                 GridEnvironment)
 from dgl_ptm.environment.grid_assignment import grid_assignment,grid_assignment_3d
 from dgl_ptm.network.network_creation import network_creation
-from dgl_ptm.environment.grid_update import update_grid
+from dgl_ptm.environment.grid_update import update_grid, update_grid_3d
 
 def test_basic_grid_creation():
     """Test the 'basic' method of grid_creation function."""
@@ -382,8 +382,9 @@ def example_np_3d_position_file(tmp_path):
 @pytest.fixture
 def example_pt_3d_position_file(tmp_path):
     """Create an example .pt file of agent positions for import."""
-    example_positions = torch.tensor([[0, 0, 0], [0, 1, 1], [1, 0, 0], [1, 1, 1],[0, 1, 1],
-                                [0, 1, 1], [0, 1, 1], [0, 1, 1], [0, 1, 1],[0, 1, 1]])
+    example_positions = torch.tensor([[0, 0, 0], [0, 1, 1], [1, 0, 0], 
+                                      [1, 1, 1],[0, 1, 1],[0, 1, 1], [0, 1, 1], 
+                                      [0, 1, 1], [0, 1, 1],[0, 1, 1]])
     file_path = tmp_path / "example_positions_3d.pt"
     torch.save(example_positions, file_path)
     return file_path
@@ -424,8 +425,8 @@ def test_custom_import_grid_assignment_pt_3d(example_graph,example_distribution_
                                           example_pt_3d_position_file):
     """Test the 'custom_import' method of grid_assignment function."""
 
-    grid_assignment_3d(example_graph, example_distribution_grid_3d, method='custom_import', 
-                    path=str(example_pt_3d_position_file))
+    grid_assignment_3d(example_graph, example_distribution_grid_3d, 
+                       method='custom_import', path=str(example_pt_3d_position_file))
 
     assert torch.all(example_graph.ndata['x'] >= 0) 
     assert torch.all(example_graph.ndata['x'] < 2)
@@ -444,8 +445,8 @@ def test_custom_import_grid_assignment_np_3d(example_graph,example_distribution_
                                           example_np_3d_position_file):
     """Test the 'custom_import' method of grid_assignment function."""
 
-    grid_assignment_3d(example_graph, example_distribution_grid_3d, method='custom_import', 
-                    path=str(example_np_3d_position_file))
+    grid_assignment_3d(example_graph, example_distribution_grid_3d, 
+                       method='custom_import', path=str(example_np_3d_position_file))
 
     assert torch.all(example_graph.ndata['x'] >= 0) 
     assert torch.all(example_graph.ndata['x'] < 2)
@@ -457,12 +458,11 @@ def test_custom_import_grid_assignment_np_3d(example_graph,example_distribution_
             torch.sum(example_graph.ndata['y'] == 1))
     assert (torch.sum(example_graph.ndata['z'] == 0) < 
             torch.sum(example_graph.ndata['z'] == 1))
- 
-'''
+
 def test_update_grid_noise():
     """Test the 'noise' method of the update_grid function."""
     grid = torch.zeros(2, 5, 2)
-    grid_environment = GridEnvironment(grid, {"propertyA": 0, "PropertyB": 1})
+    grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "2D")
     
     properties = {
         'propertyA': {
@@ -478,7 +478,7 @@ def test_update_grid_noise():
             'ratio': 0.5,
             'distribution': {
                 'type': 'normal',
-                'parameters': [1.0, 0.2],
+                'parameters': [1.0, 0.1],
                 'round': True,
                 'decimals': 2
             }
@@ -491,18 +491,115 @@ def test_update_grid_noise():
     propertyB_values = grid_environment.grid_tensor[:, :, 1]
     assert propertyA_values.mean() > 0
     assert torch.all(propertyA_values) < 3
-    assert propertyB_values.mean() == 0.5
+    assert propertyB_values.mean() == pytest.approx(0.5, abs=0.1)
     assert torch.all(propertyB_values <= 2)
 
 def test_update_grid_targeted():
     """Test the 'targeted' method of the update_grid function."""
     grid = torch.zeros(2, 5, 2)
-    grid_environment = GridEnvironment(grid, {"propertyA": 0, "PropertyB": 1})
+    grid_environment = GridEnvironment(grid, {"propertyA": 0, "PropertyB": 1}, "2D")
     
     updates = torch.tensor([[0, 0, 0, 1], [1, 4, 1, 2]])
     
     update_grid(grid_environment, method='targeted', updates=updates)
     
     assert grid_environment.grid_tensor[0, 0, 0] == 1
-    assert grid_environment.grid_tensor[1, 4, 1] == 2'
-    '''
+    assert grid_environment.grid_tensor[1, 4, 1] == 2
+
+
+def test_update_grid_custom_import_np(example_np_file):
+    """Test the 'custom_import' method of the update_grid function."""
+    grid = torch.zeros(2, 3, 2)
+    grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "2D")
+
+    update_grid(grid_environment, method='custom_import', properties =
+                            {'propertyB': {"path": str(example_np_file), 
+                                           "reference_layer": 1}})
+    assert torch.equal(grid_environment.grid_tensor[:, :, 1], 
+                       torch.tensor([[2, 4, 6], [8, 10, 12]]))
+ 
+def test_update_grid_custom_import_pt(example_pt_file):
+    """Test the 'custom_import' method of the update_grid function."""
+    grid = torch.zeros(2, 3, 2)
+    grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "2D")
+
+    update_grid(grid_environment, method='custom_import', properties =
+                            {'propertyB': {"path": str(example_pt_file), 
+                                           "reference_layer": 1}})
+    assert torch.equal(grid_environment.grid_tensor[:, :, 1],
+                       torch.tensor([[2, 4, 6], [8, 10, 12]]))
+    
+
+def test_update_grid_3d_noise():
+    """Test the 'noise' method of the update_grid_3d function."""
+    grid = torch.zeros(2, 5, 2, 2)
+    grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "3D")
+    properties = {
+        'propertyA': {
+            'count': 3,
+            'distribution': {
+                'type': 'random',
+                'parameters': [0.0, 3.0],
+                'round': True,
+                'decimals': 2
+            }
+        },
+        'propertyB': {
+            'ratio': 0.5,
+            'distribution': {
+                'type': 'normal',
+                'parameters': [1.0, 0.1],
+                'round': True,
+                'decimals': 2
+            }
+        }
+    }
+    
+    update_grid_3d(grid_environment, method='noise', properties=properties)
+    
+    propertyA_values = grid_environment.grid_tensor[:, :, :, 0]
+    propertyB_values = grid_environment.grid_tensor[:, :, :, 1]
+    assert propertyA_values.mean() > 0
+    assert torch.all(propertyA_values) < 3
+    assert propertyB_values.mean() == pytest.approx(0.5, abs=0.1)
+    assert torch.all(propertyB_values <= 2)
+
+def test_update_grid_3d_targeted():
+    """Test the 'targeted' method of the update_grid_3d function."""
+    grid = torch.zeros(2, 5, 2, 2)
+    grid_environment = GridEnvironment(grid, {"propertyA": 0, "PropertyB": 1}, "3D")
+    
+    updates = torch.tensor([[0, 0, 0, 0, 1], [1, 4, 1, 1, 2]])
+    
+    update_grid_3d(grid_environment, method='targeted', updates=updates)
+    
+    assert grid_environment.grid_tensor[0, 0, 0, 0] == 1
+    assert grid_environment.grid_tensor[1, 4, 1, 1] == 2
+
+
+def test_update_grid_3d_custom_import_np(example_np_file_3d):
+    """Test the 'custom_import' method of the update_grid_3d function."""
+    grid = torch.zeros(3, 2, 3, 2)
+    grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "3D")
+
+    update_grid_3d(grid_environment, method='custom_import', properties =
+                            {'propertyB': {"path": str(example_np_file_3d), 
+                                           "reference_layer": 1}})
+    assert torch.equal(grid_environment.grid_tensor[:, :, :, 1],
+                       torch.tensor([[[2, 4, 6], [8, 10, 12]],
+                                     [[2, 4, 6], [8, 10, 12]],
+                                     [[2, 4, 6], [8, 10, 12]]]))
+ 
+def test_update_grid_3d_custom_import_pt(example_pt_file_3d):
+    """Test the 'custom_import' method of the update_grid_3d function."""
+    grid = torch.zeros(3, 2, 3, 2)
+    grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "3D")
+
+    update_grid_3d(grid_environment, method='custom_import', properties =
+                            {'propertyB': {"path": str(example_pt_file_3d), 
+                                           "reference_layer": 1}})
+    assert torch.equal(grid_environment.grid_tensor[:, :, :, 1],
+                       torch.tensor([[[2, 4, 6], [8, 10, 12]],
+                                     [[2, 4, 6], [8, 10, 12]],
+                                     [[2, 4, 6], [8, 10, 12]]]))
+    

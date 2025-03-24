@@ -7,34 +7,59 @@ Functions:
 - grid_creation: Creates a representation of the spatial environment 
 - grid_creation_3d: Creates a representation of a 3-D spatial environment
 """
-from dgl_ptm.util.utils import sample_distribution_tensor
-import torch
 import numpy as np
+import torch
+
+from dgl_ptm.util.utils import sample_distribution_tensor
 
 # grid_creation - Creates a representation of the spatial environment 
 # within which agents act and interact.
 
 class GridEnvironment:
     """This class represents a spatial grid environment with properties."""
-    def __init__(self, grid_tensor, property_index):
+    def __init__(self, grid_tensor, property_index, space):
+        """Initialize the grid environment.
+
+        Args:
+            grid_tensor (torch.Tensor): tensor storing the grid environment properties
+            property_index (dict): dictionary mapping property names to indices
+            space (str): dimensionality of the grid environment (2D or 3D)
+        """
         self.grid_tensor = grid_tensor
         self.property_to_index = property_index
+        self.space = space
         self.grid_shape = grid_tensor.shape
 
     def get_slice(self, property):
+        """Return the layer of the grid tensor corresponding to a given property.
+
+        Arg:
+            property (str): name of the property for which the slice is requested
+        """
         if property not in self.property_to_index:
             raise KeyError(f"Property '{property}' not found.")
         index = self.property_to_index[property]
-        if len(self.grid_tensor.shape) == 2:
-            return self.grid_tensor
-        else:
-            return self.grid_tensor[:, :, index]
+        if self.space == "2D":
+            if len(self.grid_tensor.shape) == 2:
+                return self.grid_tensor
+            else:
+                return self.grid_tensor[:, :, index]
+        elif self.space == "3D":
+            if len(self.grid_tensor.shape) == 3:
+                return self.grid_tensor
+            else:
+                return self.grid_tensor[:, :, :, index]
 
     def __getitem__(self, property):
+        """Return the layer of the grid tensor corresponding to a given property.
+        
+        Arg: 
+            property (str): name of the property for which the index is requested
+        """
         return self.get_slice(property)
 
-def grid_creation(**kwargs):
-    """Create a representation of the model environment
+def grid_creation(method, **kwargs):
+    """Create a representation of the model environment.
 
     Args:
         method (str): Currently implementable methods include:
@@ -68,15 +93,14 @@ def grid_creation(**kwargs):
     Return:
         GridEnvironment: Grid environment created via the specified method
     """
-
-    if kwargs['method'] == 'basic':
+    if method == 'basic':
         x = kwargs['x']
         y = kwargs['y']
         grid = torch.ones(x, y)
-        grid_environment=GridEnvironment(grid, {"ones": 0})
+        grid_environment=GridEnvironment(grid, {"ones": 0},"2D")
         return grid_environment
     
-    elif kwargs['method'] == 'distribution':
+    elif method == 'distribution':
         x = kwargs['x']
         y = kwargs['y']
         properties = kwargs['properties']
@@ -90,10 +114,11 @@ def grid_creation(**kwargs):
                             round = distribution['round'],
                             decimals = distribution['decimals']).reshape(x, y)
         grid_environment=GridEnvironment(grid, {key: i for i, key in enumerate(
-                                                                    properties.keys())})
+                                                                    properties.keys())},
+                                                                                "2D")
         return grid_environment
            
-    elif kwargs['method'] == 'custom_import':
+    elif method == 'custom_import':
         if 'path' not in kwargs:
             raise ValueError('Path to grid tensor must be provided for'
                               '"custom_import" method.')
@@ -106,7 +131,7 @@ def grid_creation(**kwargs):
         else:
             raise ValueError('File type not supported for grid creation; please use '
                                 '".npy", ".pt", or ".np".')
-        grid_environment=GridEnvironment(grid, properties)
+        grid_environment=GridEnvironment(grid, properties,"2D")
         return grid_environment
             
     else:
@@ -114,8 +139,8 @@ def grid_creation(**kwargs):
 
 
 
-def grid_creation_3d(**kwargs):
-    """Create a representation of the model environment in three dimensions
+def grid_creation_3d(method, **kwargs):
+    """Create a representation of the model environment in three dimensions.
 
     Args:
         method (str): Currently implementable methods include:
@@ -151,16 +176,15 @@ def grid_creation_3d(**kwargs):
     Return:
         GridEnvironment: Grid environment created via the specified method
     """
-
-    if kwargs['method'] == 'basic':
+    if method == 'basic':
         x = kwargs['x']
         y = kwargs['y']
         z = kwargs['z']
         grid = torch.ones(x, y, z)
-        grid_environment=GridEnvironment(grid, {"ones": 0})
+        grid_environment=GridEnvironment(grid, {"ones": 0},"3D")
         return grid_environment
     
-    elif kwargs['method'] == 'distribution':
+    elif method == 'distribution':
         x = kwargs['x']
         y = kwargs['y']
         z = kwargs['z']
@@ -175,10 +199,11 @@ def grid_creation_3d(**kwargs):
                             round = distribution['round'],
                             decimals = distribution['decimals']).reshape(x, y, z)
         grid_environment=GridEnvironment(grid, {key: i for i, key in enumerate(
-                                                                    properties.keys())})
+                                                                    properties.keys())},
+                                                                                "3D")
         return grid_environment
            
-    elif kwargs['method'] == 'custom_import':
+    elif method == 'custom_import':
         if 'path' not in kwargs:
             raise ValueError('Path to grid tensor must be provided for'
                               '"custom_import" method.')
@@ -191,7 +216,7 @@ def grid_creation_3d(**kwargs):
         else:
             raise ValueError('File type not supported for grid creation; please use '
                                 '".npy", ".pt", or ".np".')
-        grid_environment=GridEnvironment(grid, properties)
+        grid_environment=GridEnvironment(grid, properties,"3D")
         return grid_environment
             
     else:

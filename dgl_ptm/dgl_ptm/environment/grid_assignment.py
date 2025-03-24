@@ -4,14 +4,12 @@ Functions:
 - grid_assignment: Assigns agents to positions in a 2D grid environment
 - grid_assignment_3d: Assigns agents to positions in a 3D grid environment
 """
-from dgl_ptm.util.utils import sample_distribution_tensor
-import torch
 import numpy as np
-import dgl
+import torch
 
 
-def grid_assignment(graph, grid_environment, **kwargs):
-    '''Assign positions of agents on the grid.
+def grid_assignment(graph, grid_environment, method, **kwargs):
+    """Assign positions of agents on the grid.
     
     Args:
         graph(DGLGraph): represents the agent network
@@ -32,14 +30,15 @@ def grid_assignment(graph, grid_environment, **kwargs):
                 array or tensor of positions (D0 agent, D1 [x,y]). 
                 It requires the following keyword argument,
                 path: path at which .np or .pt file is located
-    '''
-    if kwargs['method'] == "random":
+        kwargs: keyword arguments for the method
+    """
+    if method == "random":
         graph.ndata['x'] = torch.randint(0, grid_environment.grid_shape[0], 
                                          (graph.num_nodes(),)).float()
         graph.ndata['y'] = torch.randint(0, grid_environment.grid_shape[1], 
                                          (graph.num_nodes(),)).float()
 
-    elif kwargs['method'] == "property":
+    elif method == "property":
         property = kwargs['property']
         property_slice = grid_environment[property]
         property_sum = torch.sum(property_slice)
@@ -50,7 +49,7 @@ def grid_assignment(graph, grid_environment, **kwargs):
         x_len, y_len, property_count = grid_environment.grid_shape
         graph.ndata['x'] = (position // y_len).float()
         graph.ndata['y'] = (position % y_len).float()
-    elif kwargs['method'] == "custom_import":
+    elif method == "custom_import":
         if 'path' not in kwargs:
             raise ValueError('Path to position tensor must be provided for'
                               '"custom_import" method.')
@@ -77,8 +76,8 @@ def grid_assignment(graph, grid_environment, **kwargs):
     
 
 
-def grid_assignment_3d(graph, grid_environment, **kwargs):
-    '''Assign positions of agents in the 3D grid.
+def grid_assignment_3d(graph, grid_environment, method, **kwargs):
+    """Assign positions of agents in the 3D grid.
     
     Args:
         graph(DGLGraph): represents the agent network
@@ -99,8 +98,9 @@ def grid_assignment_3d(graph, grid_environment, **kwargs):
                 array or tensor of positions (D0 agent, D1 [x,y,z]). 
                 It requires the following keyword argument,
                 path: path at which .np or .pt file is located
-    '''
-    if kwargs['method'] == "random":
+        kwargs: keyword arguments for the method
+    """
+    if method == "random":
         graph.ndata['x'] = torch.randint(0, grid_environment.grid_shape[0], 
                                          (graph.num_nodes(),)).float()
         graph.ndata['y'] = torch.randint(0, grid_environment.grid_shape[1], 
@@ -108,7 +108,7 @@ def grid_assignment_3d(graph, grid_environment, **kwargs):
         graph.ndata['z'] = torch.randint(0, grid_environment.grid_shape[2], 
                                          (graph.num_nodes(),)).float()
 
-    elif kwargs['method'] == "property":
+    elif method == "property":
         property = kwargs['property']
         property_slice = grid_environment[property]
         property_sum = torch.sum(property_slice)
@@ -125,7 +125,7 @@ def grid_assignment_3d(graph, grid_environment, **kwargs):
         graph.ndata['y'] = y
         graph.ndata['z'] = z
 
-    elif kwargs['method'] == "custom_import":
+    elif method == "custom_import":
         if 'path' not in kwargs:
             raise ValueError('Path to position tensor must be provided for'
                               '"custom_import" method.')
