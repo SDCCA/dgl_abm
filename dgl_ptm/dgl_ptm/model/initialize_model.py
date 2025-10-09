@@ -266,9 +266,6 @@ class PovertyTrapModel(Model):
         if self.config.spatial:
             self.create_grid()
             self.place_agents()
-        print(self.grid_environment["rand_value"])
-        print(self.graph.ndata['x'])
-        print(self.graph.ndata['y'])
 
         self.initialize_global_properties()
         self.initialize_agent_properties()

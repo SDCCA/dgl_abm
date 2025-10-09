@@ -17,8 +17,8 @@ from dgl_ptm.util.network_metrics import node_degree, node_weighted_degree
 from dgl_ptm.agent.movement import move_agents
 
 
-def agent_update(model_graph, model_params=None, device=None, 
-                 timestep=None, method='pseudo'):
+def agent_update(model_graph, model_params=None, grid_environment=None, device=None, 
+                 timestep=None, method='pseudo', **kwargs):
     """Update agent attributes according to specified method.
     
     Args:
@@ -43,8 +43,10 @@ def agent_update(model_graph, model_params=None, device=None,
         _agent_degree_update(model_graph)
     elif method == 'weighted_degree':
         _agent_weighted_degree_update(model_graph)
+    elif method == 'position':
+        _agent_position_update(model_graph, model_params, grid_environment, device, **kwargs)
     elif method in ['default','pseudo']:
-        _pseudo_agent_update(model_graph,model_params,device)
+        _pseudo_agent_update(model_graph,model_params, device)
     else:
         raise NotImplementedError(f"Unrecognized agent update type {method} attempted "
                                   f"during time step implementation.")
@@ -149,9 +151,24 @@ def _agent_weighted_degree_update(model_graph):
     """
     model_graph.ndata['weighted_degree'] = node_weighted_degree(model_graph)
 
-def _agent_position_update(model_graph,model_params,moving_agents):
-    '''Updates agent position.'''
-    move_agents(model_graph,model_params,moving_agents)
+def _agent_position_update(model_graph, model_params, grid_environment, device,**kwargs):
+    """Update agent position.
+    Note: If kwargs beyond agentIDs and new_positions are provided, 
+    a key error will be raised.
+
+    Args:
+        model_graph (DGLGraph): All agent data
+        grid_environment (GridEnvironment): Agent environment information
+        model_params (dict): Parameters specified in model configuration/initialization
+        device (torch.device): Device on which to perform computations
+        agentIDs (torch.Tensor, optional): Specific agents to move
+        new_positions (torch.Tensor, optional): New positions for the specified agents
+        movement_function (str|dict, optional): Function defining agent movement
+    Returns:
+        None
+    """
+    move_agents(model_graph,model_params, grid_environment, device,**kwargs)
+
 
 
 

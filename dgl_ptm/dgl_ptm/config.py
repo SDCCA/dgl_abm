@@ -64,7 +64,7 @@ class SteeringParams(BaseModel):
     capital_method: str = "present_shock"
     trade_method: str = "singular_transfer"
     income_method: str = "income_generation"
-    consume_method: str = "fitted_consumption"
+    consume_method: str = "default"
     nn_path: str | None = "default"
     capital_update_method: str = "default"
     characteristic_distance: int | float | None = 35

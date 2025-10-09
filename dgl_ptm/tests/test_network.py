@@ -36,7 +36,7 @@ class TestGlobalAttachment:
         assert updated_number_of_edges < (1 + ratio) * current_number_of_edges
 
     def test_global_attachment_to_simple(self, model):
-        agent_graph = model.model_graph
+        agent_graph = model.graph
         params = model.steering_parameters
 
         # step operations on agent_graph

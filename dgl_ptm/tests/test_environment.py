@@ -29,7 +29,6 @@ def test_basic_grid_creation_one_square():
     assert one_grid.grid_tensor.shape == (1, 1), "Expected shape is (1, 1)"
 
 
-
 def test_distribution_grid_creation():
     """Test the 'distribution' method of grid_creation function."""
     kwargs = {
@@ -118,7 +117,7 @@ def test_custom_import_pt(example_pt_file):
     
     assert isinstance(result, GridEnvironment), "Should return GridEnvironment object"
     assert result.grid_tensor.shape == (2, 3, 2), "Grid shape should be 2x3x2"
-    assert "propertyA" in result.property_to_index, "'propertyA'should be found"
+    assert "propertyA" in result.property_to_index, "'propertyA' should be found"
     assert "propertyB" in result.property_to_index, "'propertyB' should be found"
     assert result.property_to_index["propertyA"] == 0
     assert result.property_to_index["propertyB"] == 1
@@ -126,6 +125,27 @@ def test_custom_import_pt(example_pt_file):
                        torch.tensor([[1, 3, 5], [7, 9, 11]]))
     assert torch.equal(result.grid_tensor[:, :, 1], 
                        torch.tensor([[2, 4, 6], [8, 10, 12]]))
+    
+@pytest.fixture
+def example_grid_2d(example_pt_file):
+    kwargs = {
+        'method': 'custom_import',
+        'path': str(example_pt_file),
+        'properties': {'propertyA': 0, 'propertyB': 1}
+    }
+    
+    result = grid_creation(**kwargs)
+    return result
+
+def test_get_slice(example_grid_2d):
+    """Test the get_slice method of GridEnvironment."""
+    slice_A = example_grid_2d.get_slice('propertyA')
+    assert torch.equal(slice_A, torch.tensor([[1, 3, 5], [7, 9, 11]]))
+
+
+
+
+
 
 def test_basic_grid_creation_3d():
     """Test the 'basic' method of grid_creation_3d function."""
@@ -295,7 +315,6 @@ def example_pt_position_file(tmp_path):
     file_path = tmp_path / "example_positions.pt"
     torch.save(example_positions, file_path)
     return file_path
-
 
 def test_random_grid_assignment(example_graph,example_distribution_grid):
     """Test the 'random' method of grid_assignment function."""
