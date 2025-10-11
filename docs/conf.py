@@ -18,8 +18,8 @@
 # -- Project information -----------------------------------------------------
 
 project = u"dgl_abm"
-copyright = u"2024-10-25 14:04:31, Meiert W. Grootes"
-author = u"Meiert W. Grootes"
+copyright = u"2025, Victoria M. Garibay"
+author = u"Victoria M. Garibay"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

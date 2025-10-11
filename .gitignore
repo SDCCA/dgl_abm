@@ -21,6 +21,9 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.github/workflows/release.yml
+.github/workflows/sonarcloud.yml
+
 
 # jupyter notebook
 .ipynb_checkpoints
@@ -72,3 +75,6 @@ venv.bak/
 
 # testing
 test_models/
+
+# misc
+notes.txt

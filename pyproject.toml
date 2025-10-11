@@ -9,6 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 authors = [
+    {name = "Victoria M. Garibay" email = "v.m.garibay@uva.nl"}
     {name = "Meiert W. Grootes", email = "m.grootes@esciencecenter.nl"},
     {name = "Debraj Roy"},
     {name = "Fakhereh Sarah Alidoost"},
@@ -19,7 +20,6 @@ classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -90,7 +90,7 @@ command_line = "-m pytest"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py38,py39,py310,py311,py312
+envlist = py311
 skip_missing_interpreters = true
 [testenv]
 commands = pytest
