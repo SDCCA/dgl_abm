@@ -2,6 +2,6 @@
 
 Submodules:
 - grid_creation: Generate a grid environment
-- grid_modification: Modify grid environment
+- grid_update: Modify grid environment
 - grid_assignment: Assign agents to grid cells
 """

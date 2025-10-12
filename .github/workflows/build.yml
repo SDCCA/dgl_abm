@@ -1,12 +1,15 @@
 name: Build Python Package
 
 on:
+  workflow_dispatch:
   push:
     branches:
     - main
+    - development
   pull_request:
     branches:
     - main
+    - development
 
 jobs:
 

@@ -23,6 +23,7 @@ share/python-wheels/
 *.egg
 .github/workflows/release.yml
 .github/workflows/sonarcloud.yml
+sonar-project.properties
 
 
 # jupyter notebook
@@ -75,6 +76,33 @@ venv.bak/
 
 # testing
 test_models/
+
+# raw imports from dgl_ptm
+src/dgl_abm/agent/agent_update.py      
+src/dgl_abm/edge/trade_money.py
+src/dgl_abm/edge/weight_update.py
+src/dgl_abm/environment/grid_assignment.py
+src/dgl_abm/environment/grid_creation.py
+src/dgl_abm/environment/grid_update.py
+src/dgl_abm/model/config.py
+src/dgl_abm/model/data_collection.py
+src/dgl_abm/model/initialize_model.py
+src/dgl_abm/model/step.py
+src/dgl_abm/network/global_attachment.py
+src/dgl_abm/network/link_deletion.py
+src/dgl_abm/network/local_attachment_basic_homophily.py
+src/dgl_abm/network/network_creation.py
+src/dgl_abm/network/random_edge_noise.py
+src/dgl_abm/util/matrix_utils.py
+src/dgl_abm/util/network_metrics.py
+src/dgl_abm/util/utils.py
+tests/test_agent.py
+tests/test_agent_interaction.py
+tests/test_config.py
+tests/test_environment.py
+tests/test_model.py
+tests/test_network.py
+tests/test_util.py
 
 # misc
 notes.txt
