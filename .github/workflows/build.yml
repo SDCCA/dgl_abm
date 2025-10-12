@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge,defaults
-          activate-environment: test-env
+          activate-environment: dgl_abm_cpu
           environment-file: environment.yaml
 
       - name: Verify Python info

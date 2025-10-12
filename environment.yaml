@@ -7,5 +7,6 @@ dependencies:
 
   # Development/Testing
   - pytest
+  - pytest-cov
   - ruff
   - build
