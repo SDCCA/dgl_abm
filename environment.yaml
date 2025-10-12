@@ -1,0 +1,5 @@
+name: dgl_abm_cpu
+channels:
+  - defaults
+dependencies:
+  - python>=3.11,<3.12
