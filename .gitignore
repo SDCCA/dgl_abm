@@ -23,6 +23,7 @@ share/python-wheels/
 *.egg
 .github/workflows/release.yml
 .github/workflows/sonarcloud.yml
+.github/workflows/gpu-build.yml
 sonar-project.properties
 
 

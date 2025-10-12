@@ -6,6 +6,7 @@ on:
     - main
   pull_request:
     branches:
+    - development
     - main
 
 jobs:
@@ -34,6 +35,11 @@ jobs:
       - name: Build documentation
         run: make coverage doctest html
         working-directory: docs
+      - name: Upload HTML docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-docs
+          path: docs/_build/html/
 
   verify-citation:
     name: cffconvert

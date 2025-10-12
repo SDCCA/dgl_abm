@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 authors = [
-    {name = "Victoria M. Garibay" email = "v.m.garibay@uva.nl"}
+    {name = "Victoria M. Garibay", email = "v.m.garibay@uva.nl"},
     {name = "Meiert W. Grootes", email = "m.grootes@esciencecenter.nl"},
     {name = "Debraj Roy"},
     {name = "Fakhereh Sarah Alidoost"},
@@ -23,7 +23,6 @@ classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
     "dask",
