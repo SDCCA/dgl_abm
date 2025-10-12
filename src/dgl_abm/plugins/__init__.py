@@ -21,11 +21,40 @@ logger = logging.getLogger(__name__)
 
 
 def register(plugin_name: str) -> Callable[[Any], Any]:
-    """Register a custom model type or additional functionalities."""
+    """Register a custom model type or additional functionalities.
 
-    def decorator(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
-        PLUGINS[plugin_name] = func
-        return func
+    Args:
+        plugin_name (str): Name of the plugin to register
+
+    Returns:
+        decorator (Callable): Decorator function to register the plugin
+
+    Notes:
+        Use this function as a decorator to be able to call a function
+        in dgl-abm that is not part of the core package.
+        E.g.,
+        tools.py
+        from dgl_abm.plugins import register
+
+        @register("special_function")
+        def custom_function(x):
+            return x * 2
+
+        This will register the function `custom_function` under the name
+        "special_function". You can then call it via
+        PLUGINS[plugins.tools]["special_function"](x) in, for example, step.py.
+    """
+
+    def decorator(function: Callable[[Any], Any]) -> Callable[[Any], Any]:
+        namespace = function.__module__.split(".")[-2:]
+        namespace_key = ".".join(namespace)
+        if namespace_key not in PLUGINS:
+            PLUGINS[namespace_key] = {}
+        if plugin_name in PLUGINS[namespace_key]:
+            message = f"Plugin '{plugin_name}' already in '{namespace_key}'"
+            raise ValueError(message)
+        PLUGINS[namespace_key][plugin_name] = function
+        return function
 
     return decorator
 
