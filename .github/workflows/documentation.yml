@@ -1,9 +1,11 @@
 name: documentation
 
 on:
+  workflow_dispatch:
   push:
     branches:
     - main
+    - development
   pull_request:
     branches:
     - development

@@ -3,3 +3,9 @@ channels:
   - defaults
 dependencies:
   - python>=3.11,<3.12
+  # Runtime
+
+  # Development/Testing
+  - pytest
+  - ruff
+  - build
