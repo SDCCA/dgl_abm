@@ -3,10 +3,22 @@
 cff-version: "1.2.0"
 title: "dgl_abm"
 authors:
-  - family-names: Atlas
-    given-names: Team
-    orcid: "https://orcid.org/0000-0000-0000-0000"
-date-released: 20??-MM-DD
+  - family-names: Garibay
+    given-names: Victoria M.
+    orcid: "https://orcid.org/0000-0003-0399-0591"
+  - family-names: Grootes
+    given-names: Meiert W.
+  - family-names: Roy
+    given-names: Debraj
+  - family-names: Alidoost
+    given-names: Fakhereh Sarah
+  - family-names: Chandramouli
+    given-names: Pranav
+  - family-names: van Lankveld
+    given-names: Thijs
+  - name: Team Atlas
+    type: "organization"
+date-released: "TBD"
 doi: <insert DOI here>
 version: "0.1.0"
 repository-code: "https://github.com/SDCCA/dgl_abm"

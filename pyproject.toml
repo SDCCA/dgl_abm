@@ -119,6 +119,7 @@ ignore = [
     "D104", # Missing public package docstring
     "D105", # Missing docstring in magic method
     "D107", # Missing docstring in `__init__`
+    "TRY003", # Avoid specifying long messages outside the exception class
 ]
 pydocstyle.convention = "google"
 
