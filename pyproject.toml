@@ -120,10 +120,15 @@ ignore = [
     "D105", # Missing docstring in magic method
     "D107", # Missing docstring in `__init__`
     "TRY003", # Avoid specifying long messages outside the exception class
+    "ERA001", # Found commented-out code
+    "S301", # `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue
 ]
 pydocstyle.convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
+"src/dgl_abm/model/config.py" = [
+    "N805", #First argument of a method should be named `self`
+]
 # Tests can ignore a few extra rules
 "tests/**.py" = [
     "ANN201", # Missing return type annotation for public function

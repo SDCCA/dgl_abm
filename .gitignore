@@ -99,7 +99,6 @@ src/dgl_abm/util/network_metrics.py
 src/dgl_abm/util/utils.py
 tests/test_agent.py
 tests/test_agent_interaction.py
-tests/test_config.py
 tests/test_environment.py
 tests/test_model.py
 tests/test_network.py

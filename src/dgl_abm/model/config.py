@@ -15,8 +15,9 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import PositiveInt
-from pydantic import RootModel
+from pydantic import ValidationInfo
 from pydantic import field_validator
+from pydantic import model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -30,43 +31,41 @@ class DistributionDictEntry(BaseModel):
     decimals: int | None = None
 
     @field_validator("parameters")
-    def _convert_parameters(cls, v, values) -> torch.Tensor | list[torch.Tensor]:  # noqa: N805, ANN001
-        if values.get("type") == "multinomial":
+    def convert_parameters(cls, v: object, info: ValidationInfo) -> torch.Tensor | list[torch.Tensor]:
+        """Convert parameters to torch.Tensor."""
+        if info.data is None:
+            info_message = "Cannot validate 'parameters' without 'type' field context."
+            raise ValueError(info_message)
+        if info.data.get("type") == "multinomial":
             for i in v:
                 if not isinstance(i, list):
                     type_message = "Multinomial parameters must be a list of lists."
                     raise TypeError(type_message)
-            return [torch.tensor(i) for i in v]
-        return torch.tensor(v)
+            return [torch.tensor(i, dtype=torch.float32) for i in v]
+        return torch.tensor(v, dtype=torch.float32)
 
-    model_config = ConfigDict(validate_default=True)
+    model_config = ConfigDict(validate_default=True, extra="forbid")
 
 
 class AgentAttributeDict(BaseModel):
     """Base class for agent attribute dictionary."""
 
     root: dict[str, DistributionDictEntry | torch.Tensor | list] = Field(
-        default_factory=lambda: {"DefaultAttribute": DistributionDictEntry()}
+        default_factory=lambda: {"DefaultAttribute": DistributionDictEntry()},
     )
-    model_config = ConfigDict(validate_default=True)
+    model_config = ConfigDict(validate_default=True, arbitrary_types_allowed=True)
 
-
-class GlobalPropertiesDict(BaseModel):
-    """Base class for global variable dictionary."""
-
-    root: dict[str, DistributionDictEntry | dict | int | float | list | torch.Tensor] = Field(
-        default_factory=lambda: {"DefaultGlobalAttribute": 0}
-    )
-
-    @field_validator("root")
-    def validate_dict_values(
-        cls, v
-    ) -> dict[  # noqa: N805, ANN001
-        str, DistributionDictEntry | dict | int | float | list | torch.Tensor
-    ]:
-        """Validate that each value is of an accepted type."""
+    @field_validator("root", mode="before")
+    def check_types(cls, v: object) -> dict[str, DistributionDictEntry | torch.Tensor | list]:
+        """Validate that the value for each attribute is of an accepted type."""
+        if not isinstance(v, dict):
+            dictionary_message = (
+                "The agent_attributes parameter must be a dictionary mapping "
+                "attribute names to a distribution dictionary, torch.Tensor, or list."
+            )
+            raise TypeError(dictionary_message)
         for key, value in v.items():
-            if isinstance(value, DistributionDictEntry):
+            if isinstance(value, (DistributionDictEntry, torch.Tensor, list)):
                 continue
             if isinstance(value, dict):
                 required_keys = {"distribution", "shape"}
@@ -76,30 +75,70 @@ class GlobalPropertiesDict(BaseModel):
                         f"it must be a dictionary with keys {required_keys}."
                     )
                     raise ValueError(message)
+                if not isinstance(value["shape"], (list, tuple)):
+                    message = f"The shape for '{key}' must be a list or tuple."
+                    raise TypeError(message)
+            type_message = f"Value for '{key}' must be DistributionDictEntry, torch.Tensor, or list."
+            raise TypeError(type_message)
         return v
 
-    model_config = ConfigDict(validate_default=True)
+
+class GlobalPropertiesDict(BaseModel):
+    """Base class for global variable dictionary."""
+
+    root: dict[str, DistributionDictEntry | dict | int | float | list | torch.Tensor] = Field(
+        default_factory=lambda: {"DefaultGlobalAttribute": 0},
+    )
+
+    @field_validator("root")
+    def validate_dict_values(
+        cls,
+        v: object,
+    ) -> dict[
+        str,
+        DistributionDictEntry | dict | int | float | list | torch.Tensor,
+    ]:
+        """Validate that each value is of an accepted type."""
+        for key, value in v.items():
+            if type(value) in [DistributionDictEntry, int, float, list, torch.Tensor]:
+                continue
+            if isinstance(value, dict):
+                required_keys = {"distribution", "shape"}
+                if set(value.keys()) != required_keys:
+                    message = (
+                        f"If value for '{key}' is not an int, float, list, or tensor, "
+                        f"it must be a dictionary with keys {required_keys}."
+                    )
+                    raise ValueError(message)
+                if not isinstance(value["shape"], (list, tuple)):
+                    type_message = f"The shape for '{key}' must be a list or tuple."
+                    raise TypeError(type_message)
+        return v
+
+    model_config = ConfigDict(validate_default=True, arbitrary_types_allowed=True)
 
 
 class TimeStepPropertiesDict(BaseModel):
     """Base class for time step attribute dictionary."""
 
     root: dict[str, DistributionDictEntry | dict | int | float | list | torch.Tensor] = Field(
-        default_factory=lambda: {"DefaultTimeStepAttribute": 0}
+        default_factory=lambda: {"DefaultTimeStepAttribute": 0},
     )
 
-    @field_validator("root")
+    @field_validator("root", mode="before")
     def validate_dict_values(
-        cls, v
-    ) -> dict[  # noqa: N805, ANN001
-        str, DistributionDictEntry | dict | int | float | list | torch.Tensor
+        cls,
+        v: object,
+    ) -> dict[
+        str,
+        DistributionDictEntry | dict | int | float | list | torch.Tensor,
     ]:
         """Validate that each value is of an accepted type."""
         for key, value in v.items():
-            if isinstance(value, DistributionDictEntry):
+            if type(value) in [DistributionDictEntry, int, float, list, torch.Tensor]:
                 continue
+            required_keys = {"distribution", "shape"}
             if isinstance(value, dict):
-                required_keys = {"distribution", "shape"}
                 if set(value.keys()) != required_keys:
                     message = (
                         f"If value for '{key}' is not an int, float, list, tensor, "
@@ -107,6 +146,9 @@ class TimeStepPropertiesDict(BaseModel):
                         f"keys {required_keys}."
                     )
                     raise ValueError(message)
+                if not isinstance(value["shape"], (list, tuple)):
+                    message = f"The shape for '{key}' must be a list or tuple."
+                    raise TypeError(message)
             else:
                 message = (
                     f"Value for '{key}' must be an int, float, list, tensor, distribution "
@@ -115,22 +157,7 @@ class TimeStepPropertiesDict(BaseModel):
                 raise TypeError(message)
         return v
 
-    model_config = ConfigDict(validate_default=True)
-
-
-class HomophilyDictEntry(BaseModel):
-    """Base class for homophily dictionary entry."""
-
-    keys: list[str] = ["wealth"]
-    homophily_parameter: int | float = 1.0
-    characteristic_distance: int | float = 3.33
-
-
-class HomophilyDict(RootModel[dict[str, HomophilyDictEntry]]):
-    """Base class for homophily dictionary."""
-
-    root: dict[str, HomophilyDictEntry] = Field(default_factory=lambda: {"wealth": HomophilyDictEntry()})
-    model_config = ConfigDict(validate_default=True)
+    model_config = ConfigDict(validate_default=True, arbitrary_types_allowed=True)
 
 
 class SteeringParams(BaseModel):
@@ -139,24 +166,16 @@ class SteeringParams(BaseModel):
     These are the parameters used within each step of the model.
     """
 
-    edata: list[str] | None = Field(default_factory=lambda: ["all"])
-    epath: str = "./edge_data"
-    format: str = "xarray"
-    mode: str = "w"
-    ndata: list[str | list[str | list[str]]] | None = Field(default_factory=lambda: ["all_except", ["a_table"]])
-    npath: str = "./agent_data.zarr"
-    nn_path: str | None = "default"
+    nn_path: str | None = None
     global_properties: GlobalPropertiesDict | None = None
     time_step_properties: TimeStepPropertiesDict | None = None
     agent_attributes: AgentAttributeDict | None = None
-    del_method: str | None = None
-    del_threshold: int | float | None | Literal["balance"] = None
+    deletion_method: str | None = None
+    deletion_threshold: int | float | None | Literal["balance"] = None
     noise_ratio: float | None = None
     local_ratio: float | None = None
     truncation_weight: float = 1.0e-10
     step_type: str = "default"
-    data_collection_period: int = 1
-    data_collection_list: list[int] | None = None
 
     # Make sure pydantic validates the default values
     model_config = ConfigDict(validate_default=True)
@@ -181,17 +200,18 @@ class GridCreationParams(BaseModel):
     properties: dict | None = None
     path: str | None = None
 
-    @field_validator("x", "y")
-    def _check_xy(cls, values) -> int | None:  # noqa: N805, ANN001
-        if values.get("method") in ["basic", "distribution"] and (values.get("x") is None or values.get("y") is None):
+    @model_validator(mode="after")
+    def _check_xy(cls, v: object) -> int | None:
+        if v.method in ["basic", "distribution"] and (v.x is None or v.y is None):
             xy_message = "x and y must be integers for basic and distribution methods."
             raise ValueError(xy_message)
-        if values.get("method") == "distribution" and values.get("properties") is None:
+        if v.method == "distribution" and v.properties is None:
             missing_properties_message = "Define property(ies) for distribution method."
             raise ValueError(missing_properties_message)
-        if values.get("method") == "custom_import" and values.get("path") is None:
+        if v.method == "custom_import" and v.path is None:
             missing_path_message = "Define path to .pt or .np file for custom_import method."
             raise ValueError(missing_path_message)
+        return v
 
     model_config = ConfigDict(validate_default=True)
 
@@ -204,16 +224,28 @@ class GridAssignmentParams(BaseModel):
     path: str | None = None
 
     @field_validator("property", "path")
-    def _check_property_path(cls, values) -> str | None:  # noqa: N805, ANN001
-        if values.get("method") == "property" and (values.get("property") is None or values.get("property") == ""):
-            path_message = "Define path to .pt or .np file for custom_import method."
-            raise ValueError(path_message)
-
-    @field_validator("path")
-    def _check_path(cls, v, values) -> str | None:  # noqa: N805, ANN001
-        if values.get("method") == "custom_import" and (v is None or v == ""):
+    def check_property(cls, v: object, info: ValidationInfo) -> str | None:
+        """Ensure property is defined for property-based method."""
+        if info.data is None:
+            info_message = "Property presence cannot be validated without method field context."
+            raise ValueError(info_message)
+        if info.data.get("method") == "property" and (
+            info.data.get("property") is None or info.data.get("property") == ""
+        ):
             property_message = "Define grid property name for property method."
             raise ValueError(property_message)
+        return v
+
+    @field_validator("path")
+    def check_path(cls, v: object, info: ValidationInfo) -> str | None:
+        """Ensure path is defined for custom import method."""
+        if info.data is None:
+            info_message = "Custom import path presence cannot be validated without method field context."
+            raise ValueError(info_message)
+        if info.data.get("method") == "custom_import" and (v is None or v == ""):
+            path_message = "Define path to .pt or .np file for custom_import method."
+            raise ValueError(path_message)
+        return v
 
     model_config = ConfigDict(validate_default=True)
 
@@ -224,8 +256,7 @@ class Config(BaseModel):
     These are the parameters used by the overarching process.
     """
 
-    # because pydantic does not like underscores
-    model_identifier: str = Field("test", alias="_model_identifier")
+    experiment_identifier: str = "test"
     # Never used to influence processing. This value is meant purely to add a
     # description to identify a parameter setting.
     description: str = ""
@@ -240,19 +271,26 @@ class Config(BaseModel):
     step_target: PositiveInt = 5
     checkpoint_period: int = 10
     milestones: list[PositiveInt] | None = None
+    data_collection_period: int = 1
+    data_collection_step_list: list[int] | None = None
+    edata: list[str] | None = Field(default_factory=lambda: ["all"])
+    epath: str = "./edge_data"
+    format: str = "xarray"
+    mode: str = "w"
+    ndata: list[str | list[str | list[str]]] | None = Field(default_factory=lambda: ["all_except", ["a_table"]])
+    npath: str = "./agent_data.zarr"
     steering_parameters: SteeringParams = SteeringParams()
 
-    # Make sure pydantic validates the default values
     model_config = ConfigDict(
         validate_default=True,
-        protected_namespaces=(),  # because _model is a protected namespace
+        protected_namespaces=(),
         populate_by_name=True,
         validate_assignment=True,
         extra="forbid",
     )
 
     @classmethod
-    def from_yaml(cls, config_file) -> "Config":  # noqa: ANN001
+    def from_yaml(cls, config_file: object) -> "Config":
         """Read configs from a config.yaml file.
 
         If key is not found in config.yaml, the default value is used.
