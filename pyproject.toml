@@ -120,7 +120,7 @@ ignore = [
     "D105", # Missing docstring in magic method
     "D107", # Missing docstring in `__init__`
     "TRY003", # Avoid specifying long messages outside the exception class
-    "ERA001", # Found commented-out code
+    "COM812", # Trailing comma missing  
     "S301", # `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue
 ]
 pydocstyle.convention = "google"

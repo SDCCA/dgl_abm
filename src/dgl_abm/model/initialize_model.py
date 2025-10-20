@@ -21,23 +21,20 @@ Function(s):
 
 import copy
 import logging
+import math
 import pickle
 from pathlib import Path
 import torch
 from dgl.data.utils import load_graphs
 from dgl.data.utils import save_graphs
-
-# from dgl_abm.agentInteraction.weight_update import weight_update
+from dgl_abm.environment import grid_assignment
+from dgl_abm.environment import grid_creation
 from dgl_abm.model.config import CONFIG
 from dgl_abm.model.config import Config
-
-# from dgl_ptm.environment import grid_creation, grid_assignment
-# from dgl_abm.model.step import abm_step
+from dgl_abm.model.data_collection import data_collection
+from dgl_abm.model.step import abm_step
 from dgl_abm.network.network_creation import network_creation
 from dgl_abm.util.network_metrics import average_degree
-from dgl_abm.util.network_metrics import average_weighted_degree
-from dgl_abm.util.network_metrics import node_degree
-from dgl_abm.util.network_metrics import node_weighted_degree
 from dgl_abm.util.utils import sample_distribution_tensor
 
 # Set the seed of the random number generator
@@ -48,21 +45,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def sample_distribution(distribution: dict, n_samples: int | list | tuple) -> torch.Tensor:
+def sample_distribution(distribution: dict, samples: int | list | tuple) -> torch.Tensor:
     """Generate a sample from a distribution.
 
     Args:
         distribution (dict): dictionary specifying type and parameters of distribution
-        n_samples (int|list|tuple): number/shape of samples to draw from the distribution
+        samples (int|list|tuple): number/shape of samples to draw from the distribution
 
     Returns:
         torch.Tensor
     """
     return sample_distribution_tensor(
-        distribution["type"],
+        distribution["distribution_type"],
         distribution["parameters"],
-        n_samples,
-        round=distribution["round"],
+        samples,
+        rounding=distribution["rounding"],
         decimals=distribution["decimals"],
     )
 
@@ -82,10 +79,6 @@ class Model:
         self.model_dir = self.root_path / Path(self.experiment_identifier)
 
         # Step count.
-        # Note that the config no longer contains the step count:
-        # the config is determined before a starting run;
-        # the step count may not be correct when loading a config to continue a run
-        # (whether restoring a run after a crash or continuing from a milestone).
         self.step_count = 0
 
         # Attach config.
@@ -118,12 +111,17 @@ class Model:
         logger.warning(config_file_message)
 
     def set_model_parameters(
-        self, *, parameter_file_path: None | str = None, overwrite: bool = False, **kwargs: dict
+        self,
+        *,
+        parameter_file_path: None | str = None,
+        overwrite: bool = False,
+        revalidate: bool = True,
+        **kwargs: dict,
     ) -> None:
         """Load and set model parameters.
 
-        This function starts with the default configuration specified in config.py. Then, if a
-        parameter_file_path is valid, it replaces the default configuration. The
+        This function starts with the default configuration specified in config.py. Then,
+        if a parameter_file_path is valid, it replaces the default configuration. The
         kwargs are then used to selectively replace values for any specified parameters.
         The updated configuration is then saved to a .yaml file.
 
@@ -131,33 +129,18 @@ class Model:
             parameter_file_path (str): optional, path to parameter file. If not,
                 default demo values are used.
             overwrite (bool): optional, whether to overwrite existing file. Defaults to false
+            revalidate (bool): optional, whether to revalidate the configuration after
+                loading. Defaults to a highly reccommended true.
             **kwargs (dict): flexible passing of mode parameters. Only those supported
                 by the model are accepted.
         """
         cfg = CONFIG
 
-        if parameter_file_path:
-            cfg = Config.from_yaml(parameter_file_path)
-            if kwargs:
-                # if both parameter_file_path and kwargs are set, combine them
-                # into one. If fields are duplicated, kwargs will overwrite
-                # parameter_file_path
-                for key, value in kwargs.items():
-                    if isinstance(value, dict):
-                        # Special recursive case for steering_parameters: this
-                        # makes sure to append to, not overwrite, the steering
-                        # parameters.
-                        for subkey, subvalue in value.items():
-                            setattr(cfg.__dict__[key], subkey, subvalue)
-                    else:
-                        setattr(cfg, key, value)
-                logger.warning(
-                    "model parameters have been provided via "
-                    "parameter_file_path and **kwargs. "
-                    "**kwargs will overwrite parameter_file_path",
-                )
-        elif kwargs:
-            cfg = Config.from_dict(kwargs)
+        if parameter_file_path or kwargs:
+            cfg = _merge_configs(parameter_file_path, kwargs)
+
+        if revalidate:
+            cfg = Config.model_validate(cfg.model_dump(mode="python"))
 
         if parameter_file_path is None and not kwargs:
             logger.warning(
@@ -181,13 +164,19 @@ class Model:
             setattr(self.config, key, value)
         self.steering_parameters = self.config.steering_parameters.__dict__
 
-        # Correct the paths
+        # Correct the paths and copy config details to model
         self.model_dir = self.root_path / Path(self.experiment_identifier)
         self.model_dir.mkdir(parents=True, exist_ok=True)
-        npath = Path(self.config.steering_parameters.npath)
-        self.steering_parameters["npath"] = str(self.model_dir / npath)
-        epath = Path(self.config.steering_parameters.epath)
-        self.steering_parameters["epath"] = str(self.model_dir / epath)
+        npath = Path(self.config.npath)
+        self.npath = str(self.model_dir / npath)
+        epath = Path(self.config.epath)
+        self.epath = str(self.model_dir / epath)
+        self.mode = self.config.mode
+
+        if self.config.ndata is None:
+            logger.warning("No node data collection was requested for this simulation!")
+        if self.config.edata is None:
+            logger.warning("No edge data collection was requested for this simulation!")
 
         # Save updated config to yaml file.
         self.save_model_parameters(overwrite=overwrite)
@@ -236,6 +225,11 @@ class Model:
             logger.info(seed_message)
 
         self.create_network()
+        if (
+            self.config.steering_parameters.noise_ratio in [0, None]
+            and self.config.steering_parameters.local_ratio in [0, None]
+        ) or self.config.steering_parameters.deletion_method == "balance":
+            self._attempt_type_optimization()
         if self.config.spatial:
             self.create_grid()
             self.place_agents()
@@ -243,26 +237,14 @@ class Model:
         self.initialize_time_step_properties()
         self.initialize_agent_attributes()
         self.graph = self.graph.to(self.config.device)
-        network_message = f"{self.graph.number_of_nodes()} agents wereinitialized on {self.graph.device} device."
+        network_message = f"{self.graph.number_of_nodes()} agents were initialized on {self.graph.device} device."
         logger.info(network_message)
-        """
-        weight_update(
-            self.graph,
-            self.config.device,
-            self.steering_parameters['homophily_parameter'],
-            self.steering_parameters['characteristic_distance'],
-            self.steering_parameters['truncation_weight']
-            )
-        """
+
         # store random generator state
         self.generator_state = generator.get_state()
         # number of edges(links) in the network
         self.number_of_edges = self.graph.number_of_edges()
-        # Network Metrics
         self.average_degree = average_degree(self.graph)
-        self.average_weighted_degree = average_weighted_degree(self.graph)
-        self.graph.ndata["degree"] = node_degree(self.graph)
-        self.graph.ndata["weighted_degree"] = node_weighted_degree(self.graph)
 
     def create_network(self) -> None:
         """Create intial network connecting agents.
@@ -276,24 +258,16 @@ class Model:
         )
         self.graph = agent_graph
 
-    '''
-    def create_grid(self):
-        """
-        Create an initial grid environment for agents.
-        (Optional)
-        """
-        grid_environment = grid_creation(
-            **self.config.spatial_creation_args.__dict__
-            )
+    def create_grid(self) -> None:
+        """(Optional) Create an initial grid environment for agents."""
+        grid_environment = grid_creation(**self.config.spatial_creation_args.__dict__)
         self.grid_environment = grid_environment
 
-    def place_agents(self):
-        """Place agents on the grid environment."""
-
-        self.graph.ndata['x'] = torch.zeros(self.graph.num_nodes()).float()
-        self.graph.ndata['y'] = torch.zeros(self.graph.num_nodes()).float()
+    def place_agents(self) -> None:
+        """(Optional) Place agents on the grid environment."""
+        self.graph.ndata["x"] = torch.zeros(self.graph.num_nodes()).float()
+        self.graph.ndata["y"] = torch.zeros(self.graph.num_nodes()).float()
         grid_assignment(self.graph, self.grid_environment, **self.config.spatial_assignment_args.__dict__)
-    '''
 
     def initialize_global_properties(self) -> None:
         """Initialize any properties or values necessary to run the model or make calculations.
@@ -301,40 +275,55 @@ class Model:
         Note: Global properties are very flexible in creation and usage; it is more appropriate to assign
         properties associated with each time step using the time_step_properties steering parameter.
         """
-        if self.steering_parameters.global_properties is not None:
-            for key, value in self.steering_parameters.global_properties.items():
-                if isinstance(value, list):
-                    self.steering_parameters.global_properties[key] = torch.tensor(value)
+        self.global_properties = {}
+        record = {}
+        if self.steering_parameters["global_properties"] is not None:
+            for key, value in self.steering_parameters["global_properties"].items():
+                recording_on = (
+                    self.config.steering_parameters.record_global_properties
+                    and self.config.steering_parameters.record_global_properties
+                    in ["all", "All", True, "TRUE", "true", key]
+                )
+                if recording_on:
+                    record[f"{key}_instructions"] = type(value).__name__ if not isinstance(value, dict) else value
+                if isinstance(value, list | int):
+                    self.global_properties[key] = torch.tensor(value)
                 elif isinstance(value, torch.Tensor) and len(value) == self.config.step_target:
-                    self.steering_parameters.global_properties[key] = value
+                    self.global_properties[key] = value
                 elif isinstance(value, dict):
-                    self.steering_parameters.global_properties[key] = sample_distribution(
-                        self.steering_parameters.global_properties[key]["distribution"],
-                        self.steering_parameters.global_properties[key]["shape"],
+                    self.global_properties[key] = sample_distribution(
+                        self.steering_parameters["global_properties"][key]["distribution"],
+                        self.steering_parameters["global_properties"][key]["shape"],
                     )
                 else:
-                    unsupported_message = f"Global property {key} must be a dictionary, list, or torch tensor."
+                    unsupported_message = (
+                        f"Global property {key} must be a dictionary of distribution and "
+                        "shape, a list, or a torch tensor."
+                    )
                     raise RuntimeError(unsupported_message)
-        else:
-            self.steering_parameters["global_properties"] = {}
+                if recording_on:
+                    list_values = self.global_properties[key].tolist()
+                    self.config.steering_parameters.global_properties[key] = list_values
+        if record != {}:
+            self.config.steering_parameters.record_global_properties = record
 
     def initialize_time_step_properties(self) -> None:
         """Initialize properties for each time step."""
-        if self.steering_parameters.time_step_properties is not None:
-            for key, value in self.steering_parameters.time_step_properties.items():
+        if self.steering_parameters["time_step_properties"] is not None:
+            for key, value in self.steering_parameters["time_step_properties"].items():
                 if isinstance(value, list) and len(value) == self.config.step_target:
-                    self.steering_parameters[key] = torch.tensor(value).to(self.config.device)
+                    self.steering_parameters["time_step_properties"][key] = torch.tensor(value).to(self.config.device)
                 elif isinstance(value, torch.Tensor) and len(value) == self.config.step_target:
-                    self.steering_parameters[key] = value.to(self.config.device)
+                    self.steering_parameters["time_step_properties"][key] = value.to(self.config.device)
                 elif isinstance(value, dict):
                     if "shape" in value:
-                        self.steering_parameters[key] = sample_distribution(
-                            self.steering_parameters.time_step_properties[key]["distribution"],
-                            [self.config.step_target, *self.steering_parameters.time_step_properties[key]["shape"]],
+                        self.steering_parameters["time_step_properties"][key] = sample_distribution(
+                            self.steering_parameters["time_step_properties"][key]["distribution"],
+                            [self.config.step_target, *self.steering_parameters["time_step_properties"][key]["shape"]],
                         ).to(self.config.device)
                     else:
-                        self.steering_parameters[key] = sample_distribution(
-                            self.steering_parameters.time_step_properties[key], self.config.step_target
+                        self.steering_parameters["time_step_properties"][key] = sample_distribution(
+                            self.steering_parameters["time_step_properties"][key], self.config.step_target
                         ).to(self.config.device)
                 else:
                     length_message = (
@@ -344,14 +333,13 @@ class Model:
                         f"steps, {self.config.step_target}."
                     )
                     raise RuntimeError(length_message)
-            if (
-                self.config.steering_parameters.record_time_step_properties
-                and self.config.steering_parameters.record_time_step_properties
-                in ["all", "All", True, "TRUE", "true", key]
-            ):
-                self.config.steering_parameters.record_time_step_properties[f"{key}_value"].append(
-                    self.steering_parameters.time_step_properties[key],
-                )
+                if (
+                    self.config.steering_parameters.record_time_step_properties
+                    and self.config.steering_parameters.record_time_step_properties
+                    in ["all", "All", True, "TRUE", "true", key]
+                ):
+                    list_value = self.steering_parameters["time_step_properties"][key].tolist()
+                    self.config.steering_parameters.time_step_properties[f"{key}_value"] = list_value
 
     def initialize_agent_attributes(self) -> None:
         """Initialize and assign heterogeneous or individually evolving agent attributes.
@@ -360,34 +348,32 @@ class Model:
         Values are initialized as tensors of length corresponding to number of
         agents, with values subsequently being assigned to the nodes.
         """
-        for key, value in self.agent_parameters.agent_attributes.items():
+        for key, value in self.steering_parameters["agent_attributes"].items():
             if isinstance(value, list) and len(value) == self.graph.num_nodes():
-                self.steering_parameters.agent_attributes[key] = torch.tensor(value).to(self.config.device)
+                self.graph.ndata[key] = torch.tensor(value).to(self.config.device)
             elif isinstance(value, torch.Tensor) and len(value) == self.graph.num_nodes():
-                self.steering_parameters.agent_attributes[key] = value.to(self.config.device)
+                self.graph.ndata[key] = value.to(self.config.device)
             elif isinstance(value, dict):
                 if "shape" in value:
-                    self.steering_parameters[key] = sample_distribution(
-                        self.steering_parameters.time_step_properties[key]["distribution"],
-                        [self.graph.num_nodes(), *self.steering_parameters.time_step_properties[key]["shape"]],
+                    self.graph.ndata[key] = sample_distribution(
+                        self.steering_parameters["agent_attributes"][key]["distribution"],
+                        [self.graph.num_nodes(), *self.steering_parameters["agent_attributes"][key]["shape"]],
                     ).to(self.config.device)
                 else:
-                    self.steering_parameters.agent_attributes[key] = sample_distribution(
-                        self.steering_parameters.agent_attributes[key]["distribution"],
+                    self.graph.ndata[key] = sample_distribution(
+                        self.steering_parameters["agent_attributes"][key],
                         self.graph.num_nodes(),
                     ).to(self.config.device)
             else:
                 length_message = (
-                    f"Agent property {key} must be a distribution dictionary, "
+                    f"Agent attribute {key} must be a distribution dictionary, "
                     "dictionary of distribution and shape, or a list "
                     f"or torch tensor of length equal to the number of agents, "
                     f"{self.graph.num_nodes()}."
                 )
                 raise RuntimeError(length_message)
 
-    '''
-
-    def step(self):
+    def step(self) -> None:
         """Perform a single step of the model.
 
         Note: After the step, the current state (graph, generator, step, and version)
@@ -408,45 +394,30 @@ class Model:
                 (where i is the instance).
         """
         try:
-            step_message = f'Performing step {self.step_count} of {self.config.step_target}'
+            step_message = f"Performing step {self.step_count} of {self.config.step_target}"
             logger.info(step_message)
-            #### Generalize space saving
-            if self.step_count == 0:
-                if (agent_graph.number_of_edges()+self.config['noise_ratio'] *
-                    agent_graph.number_of_nodes()+self.config['local_ratio'] *
-                    agent_graph.number_of_nodes()<2**32):
-                    agent_graph = agent_graph.int()
-                    storage_message = f"Agent graph storage type: {agent_graph.idtype}"
-                    logger.info(storage_message)
+            abm_step(self.graph, self.config.device, self.step_count, self.steering_parameters)
 
-
-            abm_step(
-                self.graph,
-                self.config.device,
-                self.step_count,
-                self.steering_parameters
-                )
-                # Data can be collected periodically (every X steps) and/or at specified time steps.
+            # Data can be collected periodically (every X steps) and/or at specified time steps.
             do_periodical_data_collection = (
-                self.config.data_collection_period > 0
+                self.config.data_collection_period not in [None, False, 0]
                 and self.step_count % self.config.data_collection_period == 0
-                )
+            )
             do_specific_data_collection = (
-                self.config.data_collection_step_list
-                and self.step_count in self.config.data_collection_step_list
-                )
+                self.config.data_collection_step_list and self.step_count in self.config.data_collection_step_list
+            )
             if do_periodical_data_collection or do_specific_data_collection:
-                #Data collection and storage
+                # Data collection and storage
                 data_collection(
-                    agent_graph,
-                    timestep = self.step_count,
-                    npath = self.config.npath,
-                    epath = self.config.epath,
-                    ndata = self.config.ndata,
-                    edata = self.config.edata,
-                    mode = self.config.mode
-                    )
-
+                    self.graph,
+                    timestep=self.step_count,
+                    npath=self.npath,
+                    epath=self.epath,
+                    ndata=self.config.ndata,
+                    edata=self.config.edata,
+                    format=self.config.format,
+                    mode=self.config.mode,
+                )
             # number of edges(links) in the network
             self.number_of_edges = self.graph.number_of_edges()
             self.average_degree = average_degree(self.graph)
@@ -454,7 +425,7 @@ class Model:
         except Exception as e:
             # TODO: Add model dump here.
             # Also check against previous save to avoid overwriting
-            msg = f'Execution of step failed for step {self.step_count}'
+            msg = f"Execution of step failed for step {self.step_count}"
             raise RuntimeError(msg) from e
 
         # save the model state every step reported by checkpoint_period and at
@@ -464,20 +435,14 @@ class Model:
         # Note that milestones are not created at the first step of a run;
         # this prevents duplicate saves when running from a milestone.
         first_step = self.step_count == self.step_first
-        save_checkpoint = (
-            self.config.checkpoint_period > 0
-            and self.step_count % self.config.checkpoint_period == 0
-            )
-        save_milestone = (
-            self.config.milestones
-            and self.step_count in self.config.milestones and not first_step
-            )
+        save_checkpoint = self.config.checkpoint_period > 0 and self.step_count % self.config.checkpoint_period == 0
+        save_milestone = self.config.milestones and self.step_count in self.config.milestones and not first_step
         if save_checkpoint or save_milestone:
             self.inputs = {
-                'graph': copy.deepcopy(self.graph),
-                'generator_state': generator.get_state(),
-                'step_count': self.step_count,
-                'process_version': self.version
+                "graph": copy.deepcopy(self.graph),
+                "generator_state": generator.get_state(),
+                "step_count": self.step_count,
+                "process_version": self.version,
             }
 
             # Note that a single step could be both a checkpoint and a milestone.
@@ -486,13 +451,13 @@ class Model:
             if save_checkpoint:
                 _save_model(self.model_dir, self.inputs)
             if save_milestone:
-                path = f'{self.model_dir}/milestone_{self.step_count}'
+                path = f"{self.model_dir}/milestone_{self.step_count}"
                 milestone_path = _make_path_unique(path)
                 _save_model(milestone_path, self.inputs)
 
-        self.step_count +=1
+        self.step_count += 1
 
-    def run(self):
+    def run(self) -> None:
         """Run the model for each step until the step_target is reached."""
         # Save config to yaml file.
         self.save_model_parameters()
@@ -500,7 +465,32 @@ class Model:
         self.step_first = self.step_count
         while self.step_count < self.config.step_target:
             self.step()
-    '''
+
+    def _attempt_type_optimization(self) -> None:
+        """Optimize the storage type of the graph.
+
+        If the maximum possible number of edges + noise edges + local edges
+        is less than 2^32, the graph is converted to int type.
+        """
+        noise_ratio = (
+            self.config.steering_parameters.noise_ratio
+            if self.config.steering_parameters.noise_ratio is not None
+            else 0
+        )
+        local_ratio = (
+            self.config.steering_parameters.local_ratio
+            if self.config.steering_parameters.local_ratio is not None
+            else 0
+        )
+        if (
+            self.graph.number_of_edges()
+            + math.ceil(noise_ratio * self.graph.number_of_nodes())
+            + math.ceil(local_ratio * self.graph.number_of_nodes())
+            < torch.iinfo(torch.int32).max
+        ):
+            self.graph = self.graph.int()
+            storage_message = f"Agent graph storage type: {self.graph.idtype}"
+            logger.info(storage_message)
 
 
 def _make_path_unique(path: str, extension: str = "") -> str:
@@ -529,6 +519,37 @@ def _make_path_unique(path: str, extension: str = "") -> str:
     else:
         path = path + extension
     return path
+
+
+def _merge_configs(parameter_file_path: str | None, kwargs: dict | None) -> Config:
+    if parameter_file_path:
+        cfg = Config.from_yaml(parameter_file_path)
+        if kwargs:
+            # if both parameter_file_path and kwargs are set, combine them
+            # into one. If fields are duplicated, kwargs will overwrite
+            # parameter_file_path
+            for key, value in kwargs.items():
+                if isinstance(value, dict):
+                    # Special recursive case for steering_parameters: this
+                    # makes sure to append to, not overwrite, the steering
+                    # parameters up to depth 1,
+                    # e.g., steering_parameters.agent_attributes will overwrite
+                    # steering_parameters.agent_attributes not the entire
+                    # steering_parameters field
+                    for subkey, subvalue in value.items():
+                        setattr(cfg.__dict__[key], subkey, subvalue)
+                else:
+                    setattr(cfg, key, value)
+            kwargs_message = (
+                "Model parameters have been provided via "
+                "parameter_file_path and **kwargs. "
+                "**kwargs take precedence and will overwrite any duplicate "
+                f"fields from the default configuration and {parameter_file_path}.",
+            )
+            logger.warning(kwargs_message)
+    elif kwargs:
+        cfg = Config.from_dict(kwargs)
+    return cfg
 
 
 def _save_model(path: str, inputs: dict) -> None:

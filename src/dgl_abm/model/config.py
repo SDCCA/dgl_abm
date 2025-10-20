@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import PositiveInt
+from pydantic import RootModel
 from pydantic import ValidationInfo
 from pydantic import field_validator
 from pydantic import model_validator
@@ -25,38 +26,51 @@ logger = logging.getLogger(__name__)
 class DistributionDictEntry(BaseModel):
     """Base class for distribution parameter dictionary entry."""
 
-    type: str = "uniform"
+    distribution_type: str = "uniform"
     parameters: list[int | float | list[int | float]] = Field(default_factory=lambda: [0.0, 1.0])
-    round: bool = False
-    decimals: int | None = None
+    rounding: bool = False
+    decimals: PositiveInt | None = None
+
+    model_config = ConfigDict(validate_default=True, extra="forbid")
 
     @field_validator("parameters")
     def convert_parameters(cls, v: object, info: ValidationInfo) -> torch.Tensor | list[torch.Tensor]:
         """Convert parameters to torch.Tensor."""
         if info.data is None:
-            info_message = "Cannot validate 'parameters' without 'type' field context."
+            info_message = "Cannot validate 'parameters' without 'distribution_type' field context."
             raise ValueError(info_message)
-        if info.data.get("type") == "multinomial":
+        if info.data.get("distribution_type") == "multinomial":
             for i in v:
                 if not isinstance(i, list):
-                    type_message = "Multinomial parameters must be a list of lists."
+                    type_message = "Multinomial parameters must be a list of two same-length lists."
                     raise TypeError(type_message)
+            lengths = [len(i) for i in v]
+            if len(set(lengths)) != 1:
+                length_message = "Multinomial parameters must be a list of two same-length lists."
+                raise ValueError(length_message)
             return [torch.tensor(i, dtype=torch.float32) for i in v]
         return torch.tensor(v, dtype=torch.float32)
 
-    model_config = ConfigDict(validate_default=True, extra="forbid")
 
-
-class AgentAttributeDict(BaseModel):
+class AgentAttributeDict(RootModel):
     """Base class for agent attribute dictionary."""
 
-    root: dict[str, DistributionDictEntry | torch.Tensor | list] = Field(
-        default_factory=lambda: {"DefaultAttribute": DistributionDictEntry()},
-    )
+    root: dict[str, dict | torch.Tensor | list]
+
     model_config = ConfigDict(validate_default=True, arbitrary_types_allowed=True)
 
+    def __getitem__(self, item: str):
+        return self.root[item]
+
+    def __setitem__(self, key: str, value: object):
+        self.root[key] = value
+
+    def items(self) -> dict[str, dict | torch.Tensor | list].items:
+        """Retrieval iterator."""
+        return self.root.items()
+
     @field_validator("root", mode="before")
-    def check_types(cls, v: object) -> dict[str, DistributionDictEntry | torch.Tensor | list]:
+    def check_types(cls, v: object) -> dict[str, dict | torch.Tensor | list]:
         """Validate that the value for each attribute is of an accepted type."""
         if not isinstance(v, dict):
             dictionary_message = (
@@ -65,9 +79,12 @@ class AgentAttributeDict(BaseModel):
             )
             raise TypeError(dictionary_message)
         for key, value in v.items():
-            if isinstance(value, (DistributionDictEntry, torch.Tensor, list)):
+            if isinstance(value, (torch.Tensor, list)):
                 continue
             if isinstance(value, dict):
+                if set(value.keys()) >= {"distribution_type", "parameters"}:
+                    v[key] = DistributionDictEntry.model_validate(value).model_dump()
+                    continue
                 required_keys = {"distribution", "shape"}
                 if set(value.keys()) != required_keys:
                     message = (
@@ -75,20 +92,32 @@ class AgentAttributeDict(BaseModel):
                         f"it must be a dictionary with keys {required_keys}."
                     )
                     raise ValueError(message)
-                if not isinstance(value["shape"], (list, tuple)):
-                    message = f"The shape for '{key}' must be a list or tuple."
+                if not isinstance(value["shape"], (int, list, tuple)):
+                    message = f"The shape for '{key}' must be an int, list, or tuple."
                     raise TypeError(message)
-            type_message = f"Value for '{key}' must be DistributionDictEntry, torch.Tensor, or list."
+                v[key]["distribution"] = DistributionDictEntry.model_validate(value["distribution"]).model_dump()
+                continue
+            type_message = f"Value for '{key}' must be valid distribution dictionary, torch.Tensor, or list."
             raise TypeError(type_message)
         return v
 
 
-class GlobalPropertiesDict(BaseModel):
+class GlobalPropertiesDict(RootModel):
     """Base class for global variable dictionary."""
 
-    root: dict[str, DistributionDictEntry | dict | int | float | list | torch.Tensor] = Field(
-        default_factory=lambda: {"DefaultGlobalAttribute": 0},
-    )
+    root: dict[str, dict | int | float | list | torch.Tensor]
+
+    model_config = ConfigDict(validate_default=True, arbitrary_types_allowed=True)
+
+    def __getitem__(self, item: str):
+        return self.root[item]
+
+    def __setitem__(self, key: str, value: object):
+        self.root[key] = value
+
+    def items(self) -> dict[str, dict | torch.Tensor | list].items:
+        """Retrieval iterator."""
+        return self.root.items()
 
     @field_validator("root")
     def validate_dict_values(
@@ -96,13 +125,16 @@ class GlobalPropertiesDict(BaseModel):
         v: object,
     ) -> dict[
         str,
-        DistributionDictEntry | dict | int | float | list | torch.Tensor,
+        dict | int | float | list | torch.Tensor,
     ]:
         """Validate that each value is of an accepted type."""
         for key, value in v.items():
-            if type(value) in [DistributionDictEntry, int, float, list, torch.Tensor]:
+            if type(value) in [int, float, list, torch.Tensor]:
                 continue
             if isinstance(value, dict):
+                if set(value.keys()) >= {"distribution_type", "parameters"}:
+                    v[key] = DistributionDictEntry.model_validate(value).model_dump()
+                    continue
                 required_keys = {"distribution", "shape"}
                 if set(value.keys()) != required_keys:
                     message = (
@@ -110,20 +142,29 @@ class GlobalPropertiesDict(BaseModel):
                         f"it must be a dictionary with keys {required_keys}."
                     )
                     raise ValueError(message)
-                if not isinstance(value["shape"], (list, tuple)):
-                    type_message = f"The shape for '{key}' must be a list or tuple."
+                if not isinstance(value["shape"], (int, list, tuple)):
+                    type_message = f"The shape for '{key}' must be an int, list, or tuple."
                     raise TypeError(type_message)
+                v[key]["distribution"] = DistributionDictEntry.model_validate(value["distribution"]).model_dump()
         return v
+
+
+class TimeStepPropertiesDict(RootModel):
+    """Base class for time step attribute dictionary."""
+
+    root: dict[str, dict | int | float | list | torch.Tensor]
 
     model_config = ConfigDict(validate_default=True, arbitrary_types_allowed=True)
 
+    def __getitem__(self, item: str):
+        return self.root[item]
 
-class TimeStepPropertiesDict(BaseModel):
-    """Base class for time step attribute dictionary."""
+    def __setitem__(self, key: str, value: object):
+        self.root[key] = value
 
-    root: dict[str, DistributionDictEntry | dict | int | float | list | torch.Tensor] = Field(
-        default_factory=lambda: {"DefaultTimeStepAttribute": 0},
-    )
+    def items(self) -> dict[str, dict | torch.Tensor | list].items:
+        """Retrieval iterator."""
+        return self.root.items()
 
     @field_validator("root", mode="before")
     def validate_dict_values(
@@ -131,14 +172,17 @@ class TimeStepPropertiesDict(BaseModel):
         v: object,
     ) -> dict[
         str,
-        DistributionDictEntry | dict | int | float | list | torch.Tensor,
+        dict | int | float | list | torch.Tensor,
     ]:
         """Validate that each value is of an accepted type."""
         for key, value in v.items():
-            if type(value) in [DistributionDictEntry, int, float, list, torch.Tensor]:
+            if type(value) in [int, float, list, torch.Tensor]:
                 continue
             required_keys = {"distribution", "shape"}
             if isinstance(value, dict):
+                if set(value.keys()) >= {"distribution_type", "parameters"}:
+                    v[key] = DistributionDictEntry.model_validate(value).model_dump()
+                    continue
                 if set(value.keys()) != required_keys:
                     message = (
                         f"If value for '{key}' is not an int, float, list, tensor, "
@@ -146,9 +190,10 @@ class TimeStepPropertiesDict(BaseModel):
                         f"keys {required_keys}."
                     )
                     raise ValueError(message)
-                if not isinstance(value["shape"], (list, tuple)):
-                    message = f"The shape for '{key}' must be a list or tuple."
+                if not isinstance(value["shape"], (int, list, tuple)):
+                    message = f"The shape for '{key}' must be an int, list, or tuple."
                     raise TypeError(message)
+                v[key]["distribution"] = DistributionDictEntry.model_validate(value["distribution"]).model_dump()
             else:
                 message = (
                     f"Value for '{key}' must be an int, float, list, tensor, distribution "
@@ -156,8 +201,6 @@ class TimeStepPropertiesDict(BaseModel):
                 )
                 raise TypeError(message)
         return v
-
-    model_config = ConfigDict(validate_default=True, arbitrary_types_allowed=True)
 
 
 class SteeringParams(BaseModel):
@@ -168,8 +211,21 @@ class SteeringParams(BaseModel):
 
     nn_path: str | None = None
     global_properties: GlobalPropertiesDict | None = None
+    record_global_properties: bool | str | None = "all"
     time_step_properties: TimeStepPropertiesDict | None = None
-    agent_attributes: AgentAttributeDict | None = None
+    record_time_step_properties: bool | str | None = "all"
+    agent_attributes: None | AgentAttributeDict = AgentAttributeDict(
+        {
+            "DefaultAttribute": {
+                "distribution_type": "uniform",
+                "parameters": [0.0, 1.0],
+                "rounding": False,
+                "decimals": None,
+            }
+        }
+    )
+    rounding: bool = False
+    decimals: PositiveInt | None = None
     deletion_method: str | None = None
     deletion_threshold: int | float | None | Literal["balance"] = None
     noise_ratio: float | None = None
@@ -192,26 +248,55 @@ class InitialGraphArgs(BaseModel):
 
 
 class GridCreationParams(BaseModel):
-    """Base class for grid creation arguments."""
+    """Base class for grid creation arguments. Currently does not test z."""
 
     method: str = "basic"
-    x: int | None = 10
-    y: int | None = 10
-    properties: dict | None = None
+    x: PositiveInt | None = 10
+    y: PositiveInt | None = 10
+    properties: dict[str, PositiveInt | dict] | None = None
     path: str | None = None
 
     @model_validator(mode="after")
-    def _check_xy(cls, v: object) -> int | None:
+    def _check_xy(cls, v: object) -> object | None:
         if v.method in ["basic", "distribution"] and (v.x is None or v.y is None):
-            xy_message = "x and y must be integers for basic and distribution methods."
+            xy_message = "x and y dimensions must be defined as positive integers for basic and distribution methods."
             raise ValueError(xy_message)
-        if v.method == "distribution" and v.properties is None:
-            missing_properties_message = "Define property(ies) for distribution method."
-            raise ValueError(missing_properties_message)
-        if v.method == "custom_import" and v.path is None:
-            missing_path_message = "Define path to .pt or .np file for custom_import method."
-            raise ValueError(missing_path_message)
+        if v.method == "distribution":
+            cls._check_distribution_method(v)
+        if v.method == "custom_import":
+            cls._check_custom_import_method(v)
         return v
+
+    @staticmethod
+    def _check_distribution_method(v: object) -> None:
+        if v.properties is None:
+            missing_properties_message = "Define property(ies) dictionary for distribution method."
+            raise ValueError(missing_properties_message)
+        if not all(isinstance(value, dict) for value in v.properties.values()):
+            dict_message = "The values for properties in the property dictionary must be distribution dictionaries."
+            raise TypeError(dict_message)
+        for key, value in v.properties.items():
+            try:
+                DistributionDictEntry.model_validate(value)
+                v.properties[key] = DistributionDictEntry.model_validate(value).model_dump()
+            except Exception as invalid_entry_info:
+                message = "Invalid distribution dictionary in properties."
+                raise TypeError(message) from invalid_entry_info
+
+    @staticmethod
+    def _check_custom_import_method(v: object) -> None:
+        if v.path is None:
+            missing_path_message = "Define path to .pt or .np file as string for custom_import method."
+            raise ValueError(missing_path_message)
+        if v.properties is None:
+            missing_properties_message = "Define property(ies) dictionary for distribution method."
+            raise ValueError(missing_properties_message)
+        if not all(isinstance(value, int) for value in v.properties.values()):
+            int_message = (
+                "The values for properties in the property dictionary must be integers representing "
+                "the corresponding dimension of the import."
+            )
+            raise TypeError(int_message)
 
     model_config = ConfigDict(validate_default=True)
 
@@ -271,12 +356,12 @@ class Config(BaseModel):
     step_target: PositiveInt = 5
     checkpoint_period: int = 10
     milestones: list[PositiveInt] | None = None
-    data_collection_period: int = 1
+    data_collection_period: None | Literal[False] | PositiveInt = 1
     data_collection_step_list: list[int] | None = None
     edata: list[str] | None = Field(default_factory=lambda: ["all"])
     epath: str = "./edge_data"
     format: str = "xarray"
-    mode: str = "w"
+    mode: str = "w-"
     ndata: list[str | list[str | list[str]]] | None = Field(default_factory=lambda: ["all_except", ["a_table"]])
     npath: str = "./agent_data.zarr"
     steering_parameters: SteeringParams = SteeringParams()
@@ -308,14 +393,14 @@ class Config(BaseModel):
         return cls(**cfg)
 
     @classmethod
-    def from_dict(cls, config_dict) -> "Config":  # noqa: ANN001
+    def from_dict(cls, config_dict: object) -> "Config":
         """Read configs from a dict."""
         if not isinstance(config_dict, dict):
             input_message = "Input must be a dictionary."
             raise TypeError(input_message)
         return cls(**config_dict)
 
-    def to_yaml(self, config_file) -> None:  # noqa: ANN001
+    def to_yaml(self, config_file: object) -> None:
         """Write configs to a yaml config_file."""
         if Path(config_file).exists():
             overwrite_message = f"Overwriting config file {config_file}."
@@ -324,7 +409,7 @@ class Config(BaseModel):
         cfg = self.model_dump(by_alias=True, warnings=False)
 
         # if there are tensors, convert them to lists before saving
-        def _convert_value(nested_dict) -> dict:  # noqa: ANN001
+        def _convert_value(nested_dict: object) -> dict:
             """Convert tensors to lists in a nested dictionary."""
             for key, value in nested_dict.items():
                 if isinstance(value, torch.Tensor):

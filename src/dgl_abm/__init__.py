@@ -1,6 +1,9 @@
 """Documentation about dgl_abm."""
 
 import logging
+from .model.initialize_model import Model
+
+__all__ = ["Model"]
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 

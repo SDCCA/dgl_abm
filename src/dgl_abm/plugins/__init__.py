@@ -3,7 +3,7 @@
 Function(s):
 - register: Decorator to register a plugin
 - load_internal_plugins: Load plugins from the internal plugins directory
-- load_external_plugins: Load external plugins with the 'dgl_abm_' prefix
+- load_external_plugins: Load external plugins with the "dgl_abm_" prefix
 - register_all_plugins: Support function-based registration
 """
 

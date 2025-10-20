@@ -3,8 +3,7 @@ import pytest
 import yaml
 import torch
 
-from src.dgl_abm.model.config import Config
-from src.dgl_abm.model.config import DistributionDictEntry, TimeStepPropertiesDict, GlobalPropertiesDict, AgentAttributeDict
+from dgl_abm.model.config import Config, DistributionDictEntry, TimeStepPropertiesDict, GlobalPropertiesDict, AgentAttributeDict, GridCreationParams
 
 
 @pytest.fixture
@@ -72,7 +71,7 @@ def test_defaults():
     assert cfg.edata == ["all"]
     assert cfg.epath == "./edge_data"
     assert cfg.format == "xarray"
-    assert cfg.mode == "w"
+    assert cfg.mode == "w-"
     assert cfg.ndata == ["all_except", ["a_table"]]
     assert cfg.npath == "./agent_data.zarr"
     assert cfg.steering_parameters.deletion_method == None
@@ -88,25 +87,40 @@ def test_invalid_fields(config_parameters):
     with pytest.raises(ValueError):
         _ = Config.from_dict(config_parameters)
 
+def test_grid_creation_params_missing_xy():
+    """Test that missing coordinates raises ValueError."""
+    with pytest.raises(ValueError, match="x and y dimensions must be defined"):
+        GridCreationParams(method="basic", x=None, y=None)
+
+def test_grid_creation_params_missing_property():
+    """Test that missing properties raises ValueError."""
+    with pytest.raises(ValueError, match="Define property\\(ies\\) dictionary"):
+        GridCreationParams(method="distribution")
+
+def test_grid_creation_params_missing_path():
+    """Test that missing path raises ValueError."""
+    with pytest.raises(ValueError, match="Define path to .pt or .np file"):
+        GridCreationParams(method="custom_import")
+
 def test_agent_attributes():
     valid_dict = {
         "tensor": torch.tensor([1, 2, 3]),
         "list": [1, 2, 3],
-        "distribution": DistributionDictEntry(type="uniform", parameters=[0, 1])
+        "distribution": {"distribution_type": "uniform", "parameters": [0, 1]}
     }
     attributes = AgentAttributeDict(root=valid_dict)
     assert isinstance(attributes, AgentAttributeDict)
     assert torch.equal(attributes.root["tensor"], torch.tensor([1, 2, 3]))
     assert attributes.root["list"] == [1, 2, 3]
-    assert isinstance(attributes.root["distribution"], DistributionDictEntry)
+    assert isinstance(attributes.root["distribution"], dict)
 
 
 def test_time_step_properties():
     """Test acceptance of valid values."""
-    dictionary = TimeStepPropertiesDict(root={"dist": DistributionDictEntry()})
+    dictionary = TimeStepPropertiesDict(root={"distribution": {"distribution_type": "uniform", "parameters": [0, 1]}})
     assert isinstance(dictionary, TimeStepPropertiesDict)
 
-    dictionary = TimeStepPropertiesDict(root={"custom": {"distribution":{"distribution": {"type": "random", "parameters":[]}, "shape": [10]}, "shape": [2, 3]}})
+    dictionary = TimeStepPropertiesDict(root={"custom": {"distribution":{"distribution_type": "random", "parameters":[]}, "shape": [2, 3]}})
     assert isinstance(dictionary, TimeStepPropertiesDict)
 
     dictionary = TimeStepPropertiesDict(root={"int": 1, "float": 2.0, "list": [1, 2], "tensor": torch.tensor([1, 2])})
@@ -120,8 +134,7 @@ def test_global_properties():
         "float": 1.23,
         "list": [1, 2, 3],
         "tensor": torch.tensor([1, 2, 3]),
-        "distribution": DistributionDictEntry(type="uniform", parameters=[0, 1]),
-        "dictionary": {"distribution": {"type": "random", "parameters":[]}, "shape": [10]}
+        "dictionary": {"distribution": {"distribution_type": "random", "parameters":[]}, "shape": [10]}
     }
     props = GlobalPropertiesDict(root=example)
     assert isinstance(props, GlobalPropertiesDict)
@@ -129,8 +142,7 @@ def test_global_properties():
     assert props.root["float"] == 1.23
     assert props.root["list"] == [1, 2, 3]
     assert torch.equal(props.root["tensor"], torch.tensor([1, 2, 3]))
-    assert isinstance(props.root["distribution"], DistributionDictEntry)
-    assert props.root["dictionary"]["distribution"]["type"] == "random"
+    assert props.root["dictionary"]["distribution"]["distribution_type"] == "random"
     assert props.root["dictionary"]["shape"] == [10]
 
 def test_invalid_values(config_parameters):
@@ -142,12 +154,12 @@ def test_invalid_values(config_parameters):
 def test_time_step_invalid_dict_keys():
      """Test dict with no shape key."""
      with pytest.raises(ValueError, match=" must be a dictionary with keys"):
-        TimeStepPropertiesDict(root={"invalid_dictionary": {"distribution": {"type": "uniform", "parameters": [0,1]}}})
+        TimeStepPropertiesDict(root={"invalid_dictionary": {"distribution": {"distribution_type": "uniform", "parameters": [0,1]}}})
 
 def test_time_step_invalid_shape_type():
     """Test dict with invalid shape."""
-    with pytest.raises(TypeError, match="must be a list or tuple"):
-        TimeStepPropertiesDict(root={"invalid_shape": {"distribution": {"type": "uniform", "parameters": [0,1]}, "shape": 4}})
+    with pytest.raises(TypeError, match="must be an int, list, or tuple"):
+        TimeStepPropertiesDict(root={"invalid_shape": {"distribution": {"distribution_type": "uniform", "parameters": [0,1]}, "shape": "square"}})
 
 def test_time_step_invalid_value_type():
     """Test dict with invalid value type."""
@@ -161,20 +173,20 @@ def test_global_properties_invalid_dict_keys():
 
 def test_global_properties_invalid_shape_type():
     """Test dict with invalid shape."""
-    with pytest.raises(TypeError, match="must be a list or tuple"):
-        GlobalPropertiesDict(root={"invalid_shape": {"distribution": "uniform", "shape": 4}})
+    with pytest.raises(TypeError, match="must be an int, list, or tuple"):
+        GlobalPropertiesDict(root={"invalid_shape": {"distribution": "uniform", "shape": "rhombus"}})
 
 def test_agent_attributes_invalid_value_type():
     """Test dict with invalid value type."""
-    with pytest.raises(TypeError, match="must be DistributionDictEntry, torch.Tensor, or"):
+    with pytest.raises(TypeError, match="must be valid distribution dictionary, torch.Tensor,"):
         AgentAttributeDict(root={"invalid_type": "all ones"})
 
 def test_distribution_multinomial_conversion():
-    distribution = DistributionDictEntry(type="multinomial", parameters=[[0.2, 0.8], [0.5, 0.5]])
+    distribution = DistributionDictEntry.model_validate({"distribution_type": "multinomial", "parameters": [[0.2, 0.8], [0.5, 0.5]]})
     assert isinstance(distribution.parameters, list)
     assert all(isinstance(t, torch.Tensor) for t in distribution.parameters)
-    assert distribution.parameters[0].tolist() == pytest.approx([0.2, 0.8], abs=1e-6)
+    assert distribution.parameters[0].tolist() == pytest.approx([0.2, 0.8])
 
 def test_distribution_multinomial_invalid():
-    with pytest.raises(TypeError):
-        DistributionDictEntry(type="multinomial", parameters=[0.1, 0.9])  
+    with pytest.raises(ValueError):
+        DistributionDictEntry.model_validate({"distribution_type": "multinomial", "parameters": [[0.1, 0.2], [0.9]]})
