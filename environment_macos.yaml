@@ -1,13 +1,12 @@
-name: dgl_abm_cpu
+name: dgl_abm_mac
 channels:
   - defaults
   - dglteam
   - pytorch
 dependencies:
-  - python>=3.11,<3.12
+  - python>=3.10,<3.11
   # Runtime
-  - dgl=2.0.0
-  - pytorch=2.1.0
+  - pip
   - pydantic=2.11.7
   - yaml=0.2.5
   - xarray
