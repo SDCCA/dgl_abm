@@ -56,7 +56,9 @@ jobs:
       
       - name: Run unit tests
         shell: bash -le {0}
-        run: python -m pytest -v --cov=src/dgl_abm --cov-report=xml --cov-report=term
+        run: |
+          pip install -e .
+          python -m pytest -v --cov=src/dgl_abm --cov-report=xml --cov-report=term
 
       - name: Verify that package builds
         shell: bash -le {0}
