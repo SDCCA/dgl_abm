@@ -42,7 +42,7 @@ keywords = ["ABM", "Graph", "PyTorch", "Tensor"]
 license = {file = "LICENSE"}
 name = "dgl_abm"
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.11, <3.12"
+requires-python = ">=3.10, <3.12"
 version = "0.1.0"
 
 [project.optional-dependencies]

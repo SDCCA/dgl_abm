@@ -85,13 +85,11 @@ src/dgl_abm/agent/movement.py
 src/dgl_abm/edge/trade_money.py
 src/dgl_abm/edge/edge_update.py
 src/dgl_abm/environment/grid_assignment.py
-src/dgl_abm/environment/grid_creation.py
 src/dgl_abm/environment/grid_update.py
 src/dgl_abm/model/data_collection.py
 src/dgl_abm/network/global_attachment.py
 src/dgl_abm/network/link_deletion.py
 src/dgl_abm/network/local_attachment_homophily.py
-src/dgl_abm/network/network_creation.py
 src/dgl_abm/network/random_edge_noise.py
 src/dgl_abm/util/matrix_utils.py
 tests/test_agent.py
@@ -102,3 +100,4 @@ tests/test_network.py
 # misc
 src/dgl_abm/plugins
 notes.txt
+
