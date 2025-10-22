@@ -33,7 +33,7 @@ jobs:
           channel-priority: strict
         
       - name: Set up virtual environment (Linux/Windows/macOS+Intel)
-        if: !(runner.os == 'macOS' && runner.arch == 'ARM64')
+        if: ${{ !(runner.os == 'macOS' && runner.arch == 'ARM64') }}
         uses: conda-incubator/setup-miniconda@v3
         with:
           python-version: ${{ matrix.python-version }}
