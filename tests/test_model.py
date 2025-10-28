@@ -137,12 +137,10 @@ class TestDataCollection:
         model = data_collection_model
         data_collection(model.graph,
                         timestep=0,
+                        parameters= model.config.__dict__,
                         npath = model.npath,
-                        epath = model.epath,
-                        ndata = model.config.ndata,
-                        edata = model.config.edata,
-                        format = model.config.format,
-                        mode = model.config.mode)
+                        epath = model.epath
+                        )
 
         assert Path('test_models/data_collection/agent_data.zarr').exists()
         assert Path('test_models/data_collection/edge_data/0.zarr').exists()
@@ -152,12 +150,9 @@ class TestDataCollection:
         model.step() # timestep 0
         data_collection(model.graph,
                         timestep=1,
+                        parameters= model.config.__dict__,
                         npath = model.npath,
-                        epath = model.epath,
-                        ndata = model.config.ndata,
-                        edata = model.config.edata,
-                        format = model.config.format,
-                        mode = model.config.mode)
+                        epath = model.epath)
 
         assert Path('test_models/data_collection/agent_data.zarr').exists()
         assert Path('test_models/data_collection/edge_data/0.zarr').exists()

@@ -12,6 +12,7 @@ import torch
 
 logger = logging.getLogger(__name__)
 
+
 def network_creation(num_agents: int, method: str, **kwargs: dict) -> dgl.DGLGraph:
     """Create the network between the initialized nodes using edges from DGL.
 
@@ -27,12 +28,11 @@ def network_creation(num_agents: int, method: str, **kwargs: dict) -> dgl.DGLGra
     Return:
         agent_graph (DGLGraph): network of agent nodes resulting from the chosen method
     """
-    if (method == "barabasi-albert"):
-        seed  = kwargs["seed"] if "seed" in kwargs else torch.initial_seed()
+    if method == "barabasi-albert":
+        seed = kwargs["seed"] if "seed" in kwargs else torch.initial_seed()
 
         new_node_edges = kwargs.get("new_node_edges", 1)
-        info_message = (f"Using seed {seed} for network creation with {new_node_edges} "
-                        "edges requested.")
+        info_message = f"Using seed {seed} for network creation with {new_node_edges} edges requested."
         logger.info(info_message)
         agent_graph = barabasi_albert_graph(num_agents, new_node_edges, seed)
     elif method in ["empty", "edgeless", "null", "disconnected", "none", None]:
@@ -43,8 +43,8 @@ def network_creation(num_agents: int, method: str, **kwargs: dict) -> dgl.DGLGra
 
     return agent_graph
 
-def barabasi_albert_graph(num_agents: int, new_node_edges: int = 1,
-                          seed: int = 1) -> dgl.DGLGraph:
+
+def barabasi_albert_graph(num_agents: int, new_node_edges: int = 1, seed: int = 1) -> dgl.DGLGraph:
     """Create a barabasi-albert graph.
 
     This function creates a network graph for user-defined
@@ -59,12 +59,13 @@ def barabasi_albert_graph(num_agents: int, new_node_edges: int = 1,
     Return:
         agent_graph (DGLGraph): network of agent nodes resulting from the chosen method
     """
-    #Create graph using networkx function for barabasi albert graph
+    # Create graph using networkx function for barabasi albert graph
     networkx_graph = nx.barabasi_albert_graph(n=num_agents, m=new_node_edges, seed=seed)
-    barabasi_albert_coo = nx.to_scipy_sparse_array(networkx_graph,format="coo")
+    barabasi_albert_coo = nx.to_scipy_sparse_array(networkx_graph, format="coo")
 
-    #Return DGL graph from networkx graph
+    # Return DGL graph from networkx graph
     return dgl.from_scipy(barabasi_albert_coo)
+
 
 def edgeless_graph(num_agents: int) -> dgl.DGLGraph:
     """Create an empty graph with the given number of nodes.

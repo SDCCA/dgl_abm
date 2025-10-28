@@ -411,12 +411,9 @@ class Model:
                 data_collection(
                     self.graph,
                     timestep=self.step_count,
+                    parameters=self.config.__dict__,
                     npath=self.npath,
                     epath=self.epath,
-                    ndata=self.config.ndata,
-                    edata=self.config.edata,
-                    format=self.config.format,
-                    mode=self.config.mode,
                 )
             # number of edges(links) in the network
             self.number_of_edges = self.graph.number_of_edges()

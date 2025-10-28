@@ -228,6 +228,7 @@ class SteeringParams(BaseModel):
     decimals: PositiveInt | None = None
     deletion_method: str | None = None
     deletion_threshold: int | float | None | Literal["balance"] = None
+    attachment_ratio: float | None = None
     noise_ratio: float | None = None
     local_ratio: float | None = None
     truncation_weight: float = 1.0e-10
@@ -275,13 +276,13 @@ class GridCreationParams(BaseModel):
         if not all(isinstance(value, dict) for value in v.properties.values()):
             dict_message = "The values for properties in the property dictionary must be distribution dictionaries."
             raise TypeError(dict_message)
-        for key, value in v.properties.items():
-            try:
+        try:
+            for key, value in v.properties.items():
                 DistributionDictEntry.model_validate(value)
                 v.properties[key] = DistributionDictEntry.model_validate(value).model_dump()
-            except Exception as invalid_entry_info:
-                message = "Invalid distribution dictionary in properties."
-                raise TypeError(message) from invalid_entry_info
+        except Exception as invalid_entry_info:
+            message = "Invalid distribution dictionary in properties."
+            raise TypeError(message) from invalid_entry_info
 
     @staticmethod
     def _check_custom_import_method(v: object) -> None:

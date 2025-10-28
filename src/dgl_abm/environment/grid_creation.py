@@ -7,6 +7,7 @@ Functions:
 - grid_creation: Creates a representation of the spatial environment
 - grid_creation_3d: Creates a representation of a 3-D spatial environment
 """
+
 import numpy as np
 import torch
 from dgl_abm.util.utils import sample_distribution_tensor
@@ -14,9 +15,11 @@ from dgl_abm.util.utils import sample_distribution_tensor
 # grid_creation - Creates a representation of the spatial environment
 # within which agents act and interact.
 
+
 class GridEnvironment:
     """This class represents a spatial grid environment with properties."""
-    def __init__(self, grid_tensor:torch.Tensor, property_index:dict, space:str) -> None:
+
+    def __init__(self, grid_tensor: torch.Tensor, property_index: dict, space: str) -> None:
         """Initialize the grid environment.
 
         Args:
@@ -60,6 +63,7 @@ class GridEnvironment:
         """
         return self.get_slice(grid_property)
 
+
 def grid_creation(method: str, **kwargs: dict) -> GridEnvironment:
     """Create a representation of the model environment.
 
@@ -99,7 +103,7 @@ def grid_creation(method: str, **kwargs: dict) -> GridEnvironment:
         x = kwargs["x"]
         y = kwargs["y"]
         grid = torch.ones(x, y)
-        return GridEnvironment(grid, {"ones": 0},"2D")
+        return GridEnvironment(grid, {"ones": 0}, "2D")
 
     if method == "distribution":
         x = kwargs["x"]
@@ -110,33 +114,31 @@ def grid_creation(method: str, **kwargs: dict) -> GridEnvironment:
         for i, prop in enumerate(properties):
             distribution = properties[prop]
 
-            grid[:, :, i] = sample_distribution_tensor(distribution["type"],
-                            distribution["parameters"], n,
-                            round = distribution["round"],
-                            decimals = distribution["decimals"]).reshape(x, y)
-        return GridEnvironment(grid, {key: i for i, key in enumerate(
-                                                                    properties.keys())},
-                                                                                "2D")
+            grid[:, :, i] = sample_distribution_tensor(
+                distribution["type"],
+                distribution["parameters"],
+                n,
+                round=distribution["round"],
+                decimals=distribution["decimals"],
+            ).reshape(x, y)
+        return GridEnvironment(grid, {key: i for i, key in enumerate(properties.keys())}, "2D")
 
     if method == "custom_import":
         if "path" not in kwargs:
-            value_message = ("Path to grid tensor must be provided for"
-                              '"custom_import" method.')
+            value_message = 'Path to grid tensor must be provided for"custom_import" method.'
             raise ValueError(value_message)
         path = kwargs["path"]
         properties = kwargs["properties"]
-        if path.endswith((".np",".npy")):
+        if path.endswith((".np", ".npy")):
             grid = torch.from_numpy(np.load(path))
         elif path.endswith(".pt"):
             grid = torch.load(path)
         else:
-            value_message = ("File type not supported for grid creation; please use "
-                                '".npy", ".pt", or ".np".')
+            value_message = 'File type not supported for grid creation; please use ".npy", ".pt", or ".np".'
             raise ValueError(value_message)
-        return GridEnvironment(grid, properties,"2D")
+        return GridEnvironment(grid, properties, "2D")
     message = "Unsupported grid creation method received."
     raise NotImplementedError(message)
-
 
 
 def grid_creation_3d(method: str, **kwargs: dict) -> GridEnvironment:
@@ -181,7 +183,7 @@ def grid_creation_3d(method: str, **kwargs: dict) -> GridEnvironment:
         y = kwargs["y"]
         z = kwargs["z"]
         grid = torch.ones(x, y, z)
-        return GridEnvironment(grid, {"ones": 0},"3D")
+        return GridEnvironment(grid, {"ones": 0}, "3D")
 
     if method == "distribution":
         x = kwargs["x"]
@@ -193,32 +195,28 @@ def grid_creation_3d(method: str, **kwargs: dict) -> GridEnvironment:
         for i, prop in enumerate(properties):
             distribution = properties[prop]
 
-            grid[:, :, :, i] = sample_distribution_tensor(distribution["type"],
-                            distribution["parameters"], n,
-                            round = distribution["round"],
-                            decimals = distribution["decimals"]).reshape(x, y, z)
-        return GridEnvironment(grid, {key: i for i, key in enumerate(
-                                                                    properties.keys())},
-                                                                                "3D")
+            grid[:, :, :, i] = sample_distribution_tensor(
+                distribution["type"],
+                distribution["parameters"],
+                n,
+                round=distribution["round"],
+                decimals=distribution["decimals"],
+            ).reshape(x, y, z)
+        return GridEnvironment(grid, {key: i for i, key in enumerate(properties.keys())}, "3D")
 
     if method == "custom_import":
         if "path" not in kwargs:
-            value_message = ("Path to grid tensor must be provided for"
-                              '"custom_import" method.')
+            value_message = 'Path to grid tensor must be provided for"custom_import" method.'
             raise ValueError(value_message)
         path = kwargs["path"]
         properties = kwargs["properties"]
-        if path.endswith((".np",".npy")):
+        if path.endswith((".np", ".npy")):
             grid = torch.from_numpy(np.load(path))
         elif path.endswith(".pt"):
             grid = torch.load(path)
         else:
-            value_message = ("File type not supported for grid creation; please use "
-                                '".npy", ".pt", or ".np".')
+            value_message = 'File type not supported for grid creation; please use ".npy", ".pt", or ".np".'
             raise ValueError(value_message)
-        return GridEnvironment(grid, properties,"3D")
+        return GridEnvironment(grid, properties, "3D")
     message = "Unsupported grid creation method received."
     raise NotImplementedError(message)
-
-
-
