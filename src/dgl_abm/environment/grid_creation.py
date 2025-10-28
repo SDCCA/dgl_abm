@@ -79,7 +79,7 @@ def grid_creation(method: str, **kwargs: dict) -> GridEnvironment:
                 requires the following keyword arguments,
                 x (int): length of the grid in the x-direction/longitude
                 y (int): length of the grid in the y-direction/latitude
-                properties (dict): dictionary of property distribution dictionaries
+                grid_properties (dict): dictionary of property distribution dictionaries
                     to be assigned to the grid (format example,
                     {"property1": {"distribution_type": "uniform", "parameters": [0, 1],
                             "rounding": False, "decimals": None}})
@@ -90,7 +90,7 @@ def grid_creation(method: str, **kwargs: dict) -> GridEnvironment:
                 value coresponding to each property/channel,
                 and requires the following keyword arguments:
                 path (str): path at which .np or .pt file is located
-                properties (dict): dictionary of property names to be assigned
+                grid_properties (dict): dictionary of property names to be assigned
                     to the third dimension (format example {"property1": 0,
                     "property2": 1})
 
@@ -108,12 +108,11 @@ def grid_creation(method: str, **kwargs: dict) -> GridEnvironment:
     if method == "distribution":
         x = kwargs["x"]
         y = kwargs["y"]
-        properties = kwargs["properties"]
-        grid = torch.zeros(x, y, len(properties))
+        grid_properties = kwargs["grid_properties"]
+        grid = torch.zeros(x, y, len(grid_properties))
         n = x * y
-        for i, prop in enumerate(properties):
-            distribution = properties[prop]
-
+        for i, prop in enumerate(grid_properties):
+            distribution = grid_properties[prop]
             grid[:, :, i] = sample_distribution_tensor(
                 distribution["distribution_type"],
                 distribution["parameters"],
@@ -121,14 +120,14 @@ def grid_creation(method: str, **kwargs: dict) -> GridEnvironment:
                 rounding=distribution["rounding"],
                 decimals=distribution["decimals"],
             ).reshape(x, y)
-        return GridEnvironment(grid, {key: i for i, key in enumerate(properties.keys())}, "2D")
+        return GridEnvironment(grid, {key: i for i, key in enumerate(grid_properties.keys())}, "2D")
 
     if method == "custom_import":
         if "path" not in kwargs:
             value_message = 'Path to grid tensor must be provided for"custom_import" method.'
             raise ValueError(value_message)
         path = kwargs["path"]
-        properties = kwargs["properties"]
+        grid_properties = kwargs["grid_properties"]
         if path.endswith((".np", ".npy")):
             grid = torch.from_numpy(np.load(path))
         elif path.endswith(".pt"):
@@ -136,7 +135,7 @@ def grid_creation(method: str, **kwargs: dict) -> GridEnvironment:
         else:
             value_message = 'File type not supported for grid creation; please use ".npy", ".pt", or ".np".'
             raise ValueError(value_message)
-        return GridEnvironment(grid, properties, "2D")
+        return GridEnvironment(grid, grid_properties, "2D")
     message = "Unsupported grid creation method received."
     raise NotImplementedError(message)
 
@@ -158,7 +157,7 @@ def grid_creation_3d(method: str, **kwargs: dict) -> GridEnvironment:
                 x (int): length of the grid in the x-direction/longitude
                 y (int): length of the grid in the y-direction/latitude
                 z (int): length of the grid in the z-direction/depth
-                properties (dict): dictionary of property distribution dictionaries
+                grid_properties (dict): dictionary of property distribution dictionaries
                     to be assigned to the grid (format example,
                     {"property1": {"distribution_type": "uniform", "parameters": [0, 1],
                             "rounding": False, "decimals": None}})
@@ -169,7 +168,7 @@ def grid_creation_3d(method: str, **kwargs: dict) -> GridEnvironment:
                 value coresponding to each property/channel,
                 and requires the following keyword arguments:
                 path (str): path at which .np or .pt file is located
-                properties (dict): dictionary of property names to be assigned
+                grid_properties (dict): dictionary of property names to be assigned
                     to the third dimension (format example {"property1": 0,
                     "property2": 1})
 
@@ -189,12 +188,11 @@ def grid_creation_3d(method: str, **kwargs: dict) -> GridEnvironment:
         x = kwargs["x"]
         y = kwargs["y"]
         z = kwargs["z"]
-        properties = kwargs["properties"]
-        grid = torch.zeros(x, y, z, len(properties))
+        grid_properties = kwargs["grid_properties"]
+        grid = torch.zeros(x, y, z, len(grid_properties))
         n = x * y * z
-        for i, prop in enumerate(properties):
-            distribution = properties[prop]
-
+        for i, prop in enumerate(grid_properties):
+            distribution = grid_properties[prop]
             grid[:, :, :, i] = sample_distribution_tensor(
                 distribution["distribution_type"],
                 distribution["parameters"],
@@ -202,14 +200,14 @@ def grid_creation_3d(method: str, **kwargs: dict) -> GridEnvironment:
                 rounding=distribution["rounding"],
                 decimals=distribution["decimals"],
             ).reshape(x, y, z)
-        return GridEnvironment(grid, {key: i for i, key in enumerate(properties.keys())}, "3D")
+        return GridEnvironment(grid, {key: i for i, key in enumerate(grid_properties.keys())}, "3D")
 
     if method == "custom_import":
         if "path" not in kwargs:
             value_message = 'Path to grid tensor must be provided for"custom_import" method.'
             raise ValueError(value_message)
         path = kwargs["path"]
-        properties = kwargs["properties"]
+        grid_properties = kwargs["grid_properties"]
         if path.endswith((".np", ".npy")):
             grid = torch.from_numpy(np.load(path))
         elif path.endswith(".pt"):
@@ -217,6 +215,6 @@ def grid_creation_3d(method: str, **kwargs: dict) -> GridEnvironment:
         else:
             value_message = 'File type not supported for grid creation; please use ".npy", ".pt", or ".np".'
             raise ValueError(value_message)
-        return GridEnvironment(grid, properties, "3D")
+        return GridEnvironment(grid, grid_properties, "3D")
     message = "Unsupported grid creation method received."
     raise NotImplementedError(message)

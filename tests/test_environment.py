@@ -35,7 +35,7 @@ def test_distribution_grid_creation():
         'method': 'distribution',
         'x': 5,
         'y': 15,
-        'properties': {
+        'grid_properties': {
             'propertyA': {
                 'distribution_type': 'uniform',
                 'parameters': [0.0, 3.0],
@@ -88,7 +88,7 @@ def test_custom_import_np(example_np_file):
     kwargs = {
         'method': 'custom_import',
         'path': str(example_np_file),
-        'properties': {'propertyA': 0, 'propertyB': 1}
+        'grid_properties': {'propertyA': 0, 'propertyB': 1}
     }
     
     result = grid_creation(**kwargs)
@@ -110,7 +110,7 @@ def test_custom_import_pt(example_pt_file):
     kwargs = {
         'method': 'custom_import',
         'path': str(example_pt_file),
-        'properties': {'propertyA': 0, 'propertyB': 1}
+        'grid_properties': {'propertyA': 0, 'propertyB': 1}
     }
     
     result = grid_creation(**kwargs)
@@ -131,7 +131,7 @@ def example_grid_2d(example_pt_file):
     kwargs = {
         'method': 'custom_import',
         'path': str(example_pt_file),
-        'properties': {'propertyA': 0, 'propertyB': 1}
+        'grid_properties': {'propertyA': 0, 'propertyB': 1}
     }
     
     result = grid_creation(**kwargs)
@@ -174,7 +174,7 @@ def test_distribution_grid_creation_3d():
         'x': 2,
         'y': 3,
         'z': 4,
-        'properties': {
+        'grid_properties': {
             'propertyA': {
                 'distribution_type': 'uniform',
                 'parameters': [0.0, 3.0],
@@ -232,7 +232,7 @@ def test_custom_import_np_3d(example_np_file_3d):
     kwargs = {
         'method': 'custom_import',
         'path': str(example_np_file_3d),
-        'properties': {'propertyA': 0, 'propertyB': 1}
+        'grid_properties': {'propertyA': 0, 'propertyB': 1}
     }
     
     result = grid_creation_3d(**kwargs)
@@ -258,7 +258,7 @@ def test_custom_import_pt_3d(example_pt_file_3d):
     kwargs = {
         'method': 'custom_import',
         'path': str(example_pt_file_3d),
-        'properties': {'propertyA': 0, 'propertyB': 1}
+        'grid_properties': {'propertyA': 0, 'propertyB': 1}
     }
     
     result = grid_creation_3d(**kwargs)
@@ -289,7 +289,7 @@ def example_distribution_grid(tmp_path):
     file_path = tmp_path / "example_dist_grid.pt"
     torch.save(example_grid, file_path)
     grid=grid_creation(method='custom_import', path=str(file_path), 
-                       properties={'propertyA': 0})
+                       grid_properties={'propertyA': 0})
     return grid
 
 @pytest.fixture
@@ -327,10 +327,10 @@ def test_random_grid_assignment(example_graph,example_distribution_grid):
     assert torch.all(example_graph.ndata['y'] < 2)
 
 def test_property_grid_assignment(example_graph,example_distribution_grid):
-    """Test the 'property' method of grid_assignment function."""
+    """Test the 'grid_property' method of grid_assignment function."""
 
-    grid_assignment(example_graph, example_distribution_grid, method='property', 
-                    property='propertyA')
+    grid_assignment(example_graph, example_distribution_grid, method='grid_property', 
+                    grid_property='propertyA')
 
     assert torch.all(example_graph.ndata['x'] >= 0) 
     assert torch.all(example_graph.ndata['x'] < 2)
@@ -386,7 +386,7 @@ def example_distribution_grid_3d(tmp_path):
     file_path = tmp_path / "example_dist_grid_3d.pt"
     torch.save(example_grid, file_path)
     grid=grid_creation(method='custom_import', path=str(file_path), 
-                       properties={'propertyA': 0})
+                       grid_properties={'propertyA': 0})
     return grid
 
 @pytest.fixture
@@ -424,8 +424,8 @@ def test_random_grid_assignment_3d(example_graph,example_distribution_grid_3d):
 def test_property_grid_assignment_3d(example_graph,example_distribution_grid_3d):
     """Test the 'property' method of grid_assignment function."""
 
-    grid_assignment_3d(example_graph, example_distribution_grid_3d, method='property', 
-                    property='propertyA')
+    grid_assignment_3d(example_graph, example_distribution_grid_3d, method='grid_property', 
+                    grid_property='propertyA')
  
     assert torch.all(example_graph.ndata['x'] >= 0) 
     assert torch.all(example_graph.ndata['x'] < 2)
@@ -483,7 +483,7 @@ def test_update_grid_noise():
     grid = torch.zeros(2, 5, 2)
     grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "2D")
     
-    properties = {
+    grid_properties = {
         'propertyA': {
             'count': 3,
             'distribution': {
@@ -504,7 +504,7 @@ def test_update_grid_noise():
         }
     }
     
-    update_grid(grid_environment, method='noise', properties=properties)
+    update_grid(grid_environment, method='noise', grid_properties=grid_properties)
     
     propertyA_values = grid_environment.grid_tensor[:, :, 0]
     propertyB_values = grid_environment.grid_tensor[:, :, 1]
@@ -531,7 +531,7 @@ def test_update_grid_custom_import_np(example_np_file):
     grid = torch.zeros(2, 3, 2)
     grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "2D")
 
-    update_grid(grid_environment, method='custom_import', properties =
+    update_grid(grid_environment, method='custom_import', grid_properties =
                             {'propertyB': {"path": str(example_np_file), 
                                            "reference_layer": 1}})
     assert torch.equal(grid_environment.grid_tensor[:, :, 1], 
@@ -542,7 +542,7 @@ def test_update_grid_custom_import_pt(example_pt_file):
     grid = torch.zeros(2, 3, 2)
     grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "2D")
 
-    update_grid(grid_environment, method='custom_import', properties =
+    update_grid(grid_environment, method='custom_import', grid_properties =
                             {'propertyB': {"path": str(example_pt_file), 
                                            "reference_layer": 1}})
     assert torch.equal(grid_environment.grid_tensor[:, :, 1],
@@ -553,7 +553,7 @@ def test_update_grid_3d_noise():
     """Test the 'noise' method of the update_grid_3d function."""
     grid = torch.zeros(2, 5, 2, 2)
     grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "3D")
-    properties = {
+    grid_properties = {
         'propertyA': {
             'count': 3,
             'distribution': {
@@ -574,7 +574,7 @@ def test_update_grid_3d_noise():
         }
     }
     
-    update_grid_3d(grid_environment, method='noise', properties=properties)
+    update_grid_3d(grid_environment, method='noise', grid_properties=grid_properties)
     
     propertyA_values = grid_environment.grid_tensor[:, :, :, 0]
     propertyB_values = grid_environment.grid_tensor[:, :, :, 1]
@@ -601,7 +601,7 @@ def test_update_grid_3d_custom_import_np(example_np_file_3d):
     grid = torch.zeros(3, 2, 3, 2)
     grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "3D")
 
-    update_grid_3d(grid_environment, method='custom_import', properties =
+    update_grid_3d(grid_environment, method='custom_import', grid_properties =
                             {'propertyB': {"path": str(example_np_file_3d), 
                                            "reference_layer": 1}})
     assert torch.equal(grid_environment.grid_tensor[:, :, :, 1],
@@ -614,7 +614,7 @@ def test_update_grid_3d_custom_import_pt(example_pt_file_3d):
     grid = torch.zeros(3, 2, 3, 2)
     grid_environment = GridEnvironment(grid, {"propertyA": 0, "propertyB": 1}, "3D")
 
-    update_grid_3d(grid_environment, method='custom_import', properties =
+    update_grid_3d(grid_environment, method='custom_import', grid_properties =
                             {'propertyB': {"path": str(example_pt_file_3d), 
                                            "reference_layer": 1}})
     assert torch.equal(grid_environment.grid_tensor[:, :, :, 1],
