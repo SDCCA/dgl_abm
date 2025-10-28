@@ -84,12 +84,8 @@ src/dgl_abm/agent/agent_update.py
 src/dgl_abm/agent/movement.py
 src/dgl_abm/edge/trade_money.py
 src/dgl_abm/edge/edge_update.py
-src/dgl_abm/environment/grid_assignment.py
-src/dgl_abm/environment/grid_update.py
-src/dgl_abm/util/matrix_utils.py
 tests/test_agent.py
 tests/test_agent_interaction.py
-tests/test_environment.py
 
 # misc
 src/dgl_abm/plugins

@@ -81,8 +81,8 @@ def grid_creation(method: str, **kwargs: dict) -> GridEnvironment:
                 y (int): length of the grid in the y-direction/latitude
                 properties (dict): dictionary of property distribution dictionaries
                     to be assigned to the grid (format example,
-                    {"property1": {"type": "uniform", "parameters": [0, 1],
-                            "round": False, "decimals": None}})
+                    {"property1": {"distribution_type": "uniform", "parameters": [0, 1],
+                            "rounding": False, "decimals": None}})
             custom_import:
                 This method creates a grid environment by importing a
                 numpy array or torch tensor from a file (.np or .pt),
@@ -115,10 +115,10 @@ def grid_creation(method: str, **kwargs: dict) -> GridEnvironment:
             distribution = properties[prop]
 
             grid[:, :, i] = sample_distribution_tensor(
-                distribution["type"],
+                distribution["distribution_type"],
                 distribution["parameters"],
                 n,
-                round=distribution["round"],
+                rounding=distribution["rounding"],
                 decimals=distribution["decimals"],
             ).reshape(x, y)
         return GridEnvironment(grid, {key: i for i, key in enumerate(properties.keys())}, "2D")
@@ -160,8 +160,8 @@ def grid_creation_3d(method: str, **kwargs: dict) -> GridEnvironment:
                 z (int): length of the grid in the z-direction/depth
                 properties (dict): dictionary of property distribution dictionaries
                     to be assigned to the grid (format example,
-                    {"property1": {"type": "uniform", "parameters": [0, 1],
-                            "round": False, "decimals": None}})
+                    {"property1": {"distribution_type": "uniform", "parameters": [0, 1],
+                            "rounding": False, "decimals": None}})
             custom_import:
                 This method creates a grid environment by importing a
                 numpy array or torch tensor from a file (.np or .pt),
@@ -196,10 +196,10 @@ def grid_creation_3d(method: str, **kwargs: dict) -> GridEnvironment:
             distribution = properties[prop]
 
             grid[:, :, :, i] = sample_distribution_tensor(
-                distribution["type"],
+                distribution["distribution_type"],
                 distribution["parameters"],
                 n,
-                round=distribution["round"],
+                rounding=distribution["rounding"],
                 decimals=distribution["decimals"],
             ).reshape(x, y, z)
         return GridEnvironment(grid, {key: i for i, key in enumerate(properties.keys())}, "3D")
