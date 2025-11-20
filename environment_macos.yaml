@@ -11,6 +11,7 @@ dependencies:
   - yaml=0.2.5
   - xarray
   - zarr
+  - pluggy
   # Development/Testing
   - pytest
   - pytest-cov
