@@ -122,6 +122,7 @@ ignore = [
     "TRY003", # Avoid specifying long messages outside the exception class
     "COM812", # Trailing comma missing  
     "S301", # `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue
+    "INP001", # File is part of an implicit namespace package. Add an `__init__.py`.
 ]
 pydocstyle.convention = "google"
 
